@@ -1,0 +1,25 @@
+features:
+  VIBRATION_1: VIBRATION_1
+  VIBRATION_2: VIBRATION_2
+  DRIVE_POWER: DRIVE_POWER
+  LOAD_POWER: LOAD_POWER
+  CHARGE_MECH_POWER: CHARGE_MECH_POWER
+  CHARGE_HYD_POWER: CHARGE_HYD_POWER
+  SERVO_MECH_POWER: SERVO_MECH_POWER
+  SERVO_HYD_POWER: SERVO_HYD_POWER
+  SCAVENGE_POWER: SCAVENGE_POWER
+  MAIN_COOLER_POWER: MAIN_COOLER_POWER
+  GEARBOX_COOLER_POWER: GEARBOX_COOLER_POWER
+split:
+  train_size: 0.8
+train:
+  lstm_units: 100
+  lookback: 120
+  learning_rate: 0.1
+  batch_size: 128
+  epochs: 3
+  patience: 25
+  folds: 5
+  val_size: 0.2
+  verbose: 2
+  univariate: true

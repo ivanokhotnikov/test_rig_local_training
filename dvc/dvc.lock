@@ -1,0 +1,911 @@
+schema: '2.0'
+stages:
+  read_raw_data:
+    cmd: python ./src/read_raw_data.py --raw_data_path ../data/raw --all_raw_data_file
+      ../data/interim/all_raw.csv
+    deps:
+    - path: ../data/raw
+      md5: 53e03b4747db542b4be3fd592af02d50.dir
+      size: 418780500
+      nfiles: 237
+    - path: ./src/read_raw_data.py
+      md5: 1badac812d966b8f44d4b9b8ea9f3b34
+      size: 2897
+    outs:
+    - path: ../data/interim/all_raw.csv
+      md5: 7c45c93aa46a8503ea694b680fad4f32
+      size: 409927987
+  preprocess:
+    cmd: python ./src/preprocess.py --interim_features_file ../conf/interim_features.json
+      --all_raw_data_file ../data/interim/all_raw.csv --interim_data_file ../data/interim/interim.parquet
+    deps:
+    - path: ../conf/interim_features.json
+      md5: 3947601a6a2968f85ae2db16b0ca9b45
+      size: 477
+    - path: ../data/interim/all_raw.csv
+      md5: 7c45c93aa46a8503ea694b680fad4f32
+      size: 409927987
+    - path: ./src/preprocess.py
+      md5: 14e94c4d1c67dfa6a5a5f7bf48f870fb
+      size: 5555
+    outs:
+    - path: ../conf/forecast_features.json
+      md5: 67728b853fdcdaa022f017a707790816
+      size: 202
+    - path: ../data/interim/interim.parquet
+      md5: 9d74ee26128d6ecae7e903209ca409a5
+      size: 33315814
+  split:
+    cmd: python ./src/split.py --interim_data_file ./data/interim/interim.parquet
+      --forecast_features_file ./conf/forecast_features.json --train_data_file ./data/processed/train.parquet
+      --test_data_file ./data/processed/test.parquet
+    deps:
+    - path: ./conf/forecast_features.json
+      md5: 67728b853fdcdaa022f017a707790816
+      size: 202
+    - path: ./data/interim/interim.parquet
+      md5: 9d74ee26128d6ecae7e903209ca409a5
+      size: 33315814
+    - path: ./src/split.py
+      md5: 726a5ab1bcac3d7f73fbb341342c884d
+      size: 2446
+    params:
+      params.yaml:
+        split.train_size: 0.8
+    outs:
+    - path: ./data/processed/test.parquet
+      md5: 644f3ea2addc2d7f31311b481097e748
+      size: 3377778
+    - path: ./data/processed/train.parquet
+      md5: e13cdf38cc5153973bdea25e08b07491
+      size: 12119222
+  scale_train:
+    cmd: python ./src/scale.py --data_file ./data/processed/train.parquet --scaled_data_file
+      ./data/processed/scaled_train.parquet --scaler ./artifacts/registry/scaler.joblib
+    deps:
+    - path: ./data/processed/train.parquet
+      md5: e13cdf38cc5153973bdea25e08b07491
+      size: 12119222
+    - path: ./src/scale.py
+      md5: b41169c0fe57ea08a79817ff294c3b77
+      size: 2212
+    outs:
+    - path: ./artifacts/registry/scaler.joblib
+      md5: 3e82e2c0b9d848f7d35637391cc27969
+      size: 863
+    - path: ./data/processed/scaled_train.parquet
+      md5: aeeeef5cf16a29bcad1342581e34e7a6
+      size: 14403046
+  scale_test:
+    cmd: python ./src/scale.py --data ./data/processed/test.parquet --scaled_data
+      ./data/processed/scaled_test.parquet --scaler ./artifacts/registry/scaler.joblib
+      --test
+    deps:
+    - path: ./artifacts/registry/scaler.joblib
+      md5: 3e82e2c0b9d848f7d35637391cc27969
+      size: 863
+    - path: ./data/processed/test.parquet
+      md5: 644f3ea2addc2d7f31311b481097e748
+      size: 3377778
+    - path: ./src/scale.py
+      md5: b41169c0fe57ea08a79817ff294c3b77
+      size: 2212
+    outs:
+    - path: ./data/processed/scaled_test.parquet
+      md5: d535cb84853aeb45f886a7325bd0a56d
+      size: 4083567
+  train@DRIVE_POWER:
+    cmd: python ./src/train.py --scaled_data_file ./data/processed/scaled_train.parquet
+      --val_metrics_file ./artifacts/temp/val_metrics_DRIVE_POWER.json --model ./artifacts/temp/model_DRIVE_POWER.h5
+      --target DRIVE_POWER
+    deps:
+    - path: ./data/processed/scaled_train.parquet
+      md5: aeeeef5cf16a29bcad1342581e34e7a6
+      size: 14403046
+    - path: ./src/train.py
+      md5: 14d6fa6d8d5e940ea9ad5c88f115a9ed
+      size: 5234
+    params:
+      params.yaml:
+        train.batch_size: 128
+        train.epochs: 3
+        train.folds: 5
+        train.learning_rate: 0.1
+        train.lookback: 120
+        train.lstm_units: 100
+        train.patience: 25
+        train.univariate: true
+        train.val_size: 0.2
+        train.verbose: 2
+    outs:
+    - path: ./artifacts/temp/model_DRIVE_POWER.h5
+      md5: c868ae7bf33655e8c29cef807faed913
+      size: 354928
+    - path: ./artifacts/temp/val_metrics_DRIVE_POWER.json
+      md5: 1a39dfe768435114b570c1b329d9e495
+      size: 142
+  train@SERVO_HYD_POWER:
+    cmd: python ./src/train.py --scaled_data_file ./data/processed/scaled_train.parquet
+      --val_metrics_file ./artifacts/temp/val_metrics_SERVO_HYD_POWER.json --model
+      ./artifacts/temp/model_SERVO_HYD_POWER.h5 --target SERVO_HYD_POWER
+    deps:
+    - path: ./data/processed/scaled_train.parquet
+      md5: aeeeef5cf16a29bcad1342581e34e7a6
+      size: 14403046
+    - path: ./src/train.py
+      md5: 14d6fa6d8d5e940ea9ad5c88f115a9ed
+      size: 5234
+    params:
+      params.yaml:
+        train.batch_size: 128
+        train.epochs: 3
+        train.folds: 5
+        train.learning_rate: 0.1
+        train.lookback: 120
+        train.lstm_units: 100
+        train.patience: 25
+        train.univariate: true
+        train.val_size: 0.2
+        train.verbose: 2
+    outs:
+    - path: ./artifacts/temp/model_SERVO_HYD_POWER.h5
+      md5: fc65601bc784a56be3947130dc29a0af
+      size: 354928
+    - path: ./artifacts/temp/val_metrics_SERVO_HYD_POWER.json
+      md5: c000f147be14fbc4231d47357dc01ed1
+      size: 145
+  evaluate@DRIVE_POWER:
+    cmd: python ./src/evaluate.py --scaled_data_file ./data/processed/scaled_test.parquet
+      --model ./artifacts/temp/model_DRIVE_POWER.h5 --test_metrics ./artifacts/temp/test_metrics_DRIVE_POWER.json
+      --target DRIVE_POWER
+    deps:
+    - path: ./artifacts/temp/model_DRIVE_POWER.h5
+      md5: c868ae7bf33655e8c29cef807faed913
+      size: 354928
+    - path: ./data/processed/scaled_test.parquet
+      md5: d535cb84853aeb45f886a7325bd0a56d
+      size: 4083567
+    - path: ./src/evaluate.py
+      md5: 323806a829a544a75b979ffdb33187e8
+      size: 2282
+    params:
+      params.yaml:
+        train.batch_size: 128
+        train.lookback: 120
+        train.univariate: true
+        train.verbose: 2
+    outs:
+    - path: ./artifacts/temp/test_metrics_DRIVE_POWER.json
+      md5: 06442fb8aa6d4441c7b795274039bb8e
+      size: 66
+  train@VIBRATION_1:
+    cmd: python ./src/train.py --scaled_data_file ./data/processed/scaled_train.parquet
+      --val_metrics_file ./artifacts/temp/val_metrics_VIBRATION_1.json --model ./artifacts/temp/model_VIBRATION_1.h5
+      --target VIBRATION_1
+    deps:
+    - path: ./data/processed/scaled_train.parquet
+      md5: aeeeef5cf16a29bcad1342581e34e7a6
+      size: 14403046
+    - path: ./src/train.py
+      md5: 14d6fa6d8d5e940ea9ad5c88f115a9ed
+      size: 5234
+    params:
+      params.yaml:
+        train.batch_size: 128
+        train.epochs: 3
+        train.folds: 5
+        train.learning_rate: 0.1
+        train.lookback: 120
+        train.lstm_units: 100
+        train.patience: 25
+        train.univariate: true
+        train.val_size: 0.2
+        train.verbose: 2
+    outs:
+    - path: ./artifacts/temp/model_VIBRATION_1.h5
+      md5: 932237923eff44fae93f1d78ac1cbe5e
+      size: 354928
+    - path: ./artifacts/temp/val_metrics_VIBRATION_1.json
+      md5: a94c62bbb06a50f7d396051c653055f1
+      size: 149
+  train@VIBRATION_2:
+    cmd: python ./src/train.py --scaled_data_file ./data/processed/scaled_train.parquet
+      --val_metrics_file ./artifacts/temp/val_metrics_VIBRATION_2.json --model ./artifacts/temp/model_VIBRATION_2.h5
+      --target VIBRATION_2
+    deps:
+    - path: ./data/processed/scaled_train.parquet
+      md5: aeeeef5cf16a29bcad1342581e34e7a6
+      size: 14403046
+    - path: ./src/train.py
+      md5: 14d6fa6d8d5e940ea9ad5c88f115a9ed
+      size: 5234
+    params:
+      params.yaml:
+        train.batch_size: 128
+        train.epochs: 3
+        train.folds: 5
+        train.learning_rate: 0.1
+        train.lookback: 120
+        train.lstm_units: 100
+        train.patience: 25
+        train.univariate: true
+        train.val_size: 0.2
+        train.verbose: 2
+    outs:
+    - path: ./artifacts/temp/model_VIBRATION_2.h5
+      md5: 2b7802d0829bc29fee92ac17c77e2408
+      size: 354928
+    - path: ./artifacts/temp/val_metrics_VIBRATION_2.json
+      md5: 3749948092e689dac11565a37ee4483b
+      size: 148
+  evaluate@VIBRATION_2:
+    cmd: python ./src/evaluate.py --scaled_data_file ./data/processed/scaled_test.parquet
+      --model ./artifacts/temp/model_VIBRATION_2.h5 --test_metrics ./artifacts/temp/test_metrics_VIBRATION_2.json
+      --target VIBRATION_2
+    deps:
+    - path: ./artifacts/temp/model_VIBRATION_2.h5
+      md5: 2b7802d0829bc29fee92ac17c77e2408
+      size: 354928
+    - path: ./data/processed/scaled_test.parquet
+      md5: d535cb84853aeb45f886a7325bd0a56d
+      size: 4083567
+    - path: ./src/evaluate.py
+      md5: 323806a829a544a75b979ffdb33187e8
+      size: 2282
+    params:
+      params.yaml:
+        train.batch_size: 128
+        train.lookback: 120
+        train.univariate: true
+        train.verbose: 2
+    outs:
+    - path: ./artifacts/temp/test_metrics_VIBRATION_2.json
+      md5: 657049a95ca822c34107cf204644441b
+      size: 66
+  train@GEARBOX_COOLER_POWER:
+    cmd: python ./src/train.py --scaled_data_file ./data/processed/scaled_train.parquet
+      --val_metrics_file ./artifacts/temp/val_metrics_GEARBOX_COOLER_POWER.json --model
+      ./artifacts/temp/model_GEARBOX_COOLER_POWER.h5 --target GEARBOX_COOLER_POWER
+    deps:
+    - path: ./data/processed/scaled_train.parquet
+      md5: aeeeef5cf16a29bcad1342581e34e7a6
+      size: 14403046
+    - path: ./src/train.py
+      md5: 14d6fa6d8d5e940ea9ad5c88f115a9ed
+      size: 5234
+    params:
+      params.yaml:
+        train.batch_size: 128
+        train.epochs: 3
+        train.folds: 5
+        train.learning_rate: 0.1
+        train.lookback: 120
+        train.lstm_units: 100
+        train.patience: 25
+        train.univariate: true
+        train.val_size: 0.2
+        train.verbose: 2
+    outs:
+    - path: ./artifacts/temp/model_GEARBOX_COOLER_POWER.h5
+      md5: 11b5656f347f7d976f49164a61055946
+      size: 354928
+    - path: ./artifacts/temp/val_metrics_GEARBOX_COOLER_POWER.json
+      md5: 6ae15d519c7ee901e6a5d7ff113bfba7
+      size: 143
+  train@CHARGE_HYD_POWER:
+    cmd: python ./src/train.py --scaled_data_file ./data/processed/scaled_train.parquet
+      --val_metrics_file ./artifacts/temp/val_metrics_CHARGE_HYD_POWER.json --model
+      ./artifacts/temp/model_CHARGE_HYD_POWER.h5 --target CHARGE_HYD_POWER
+    deps:
+    - path: ./data/processed/scaled_train.parquet
+      md5: aeeeef5cf16a29bcad1342581e34e7a6
+      size: 14403046
+    - path: ./src/train.py
+      md5: 14d6fa6d8d5e940ea9ad5c88f115a9ed
+      size: 5234
+    params:
+      params.yaml:
+        train.batch_size: 128
+        train.epochs: 3
+        train.folds: 5
+        train.learning_rate: 0.1
+        train.lookback: 120
+        train.lstm_units: 100
+        train.patience: 25
+        train.univariate: true
+        train.val_size: 0.2
+        train.verbose: 2
+    outs:
+    - path: ./artifacts/temp/model_CHARGE_HYD_POWER.h5
+      md5: 915b1df1fdf68ea55bce710e653f7ea3
+      size: 354928
+    - path: ./artifacts/temp/val_metrics_CHARGE_HYD_POWER.json
+      md5: 47a4a748318acb69b87f81bac84b1541
+      size: 146
+  evaluate@CHARGE_HYD_POWER:
+    cmd: python ./src/evaluate.py --scaled_data_file ./data/processed/scaled_test.parquet
+      --model ./artifacts/temp/model_CHARGE_HYD_POWER.h5 --test_metrics ./artifacts/temp/test_metrics_CHARGE_HYD_POWER.json
+      --target CHARGE_HYD_POWER
+    deps:
+    - path: ./artifacts/temp/model_CHARGE_HYD_POWER.h5
+      md5: 915b1df1fdf68ea55bce710e653f7ea3
+      size: 354928
+    - path: ./data/processed/scaled_test.parquet
+      md5: d535cb84853aeb45f886a7325bd0a56d
+      size: 4083567
+    - path: ./src/evaluate.py
+      md5: 323806a829a544a75b979ffdb33187e8
+      size: 2282
+    params:
+      params.yaml:
+        train.batch_size: 128
+        train.lookback: 120
+        train.univariate: true
+        train.verbose: 2
+    outs:
+    - path: ./artifacts/temp/test_metrics_CHARGE_HYD_POWER.json
+      md5: 82737a7dcf0edda07322ef8fb5149035
+      size: 68
+  update_registry@CHARGE_HYD_POWER:
+    cmd: python ./src/update_registry.py --champion ./artifacts/temp/registry/test_metrics_CHARGE_HYD_POWER.json
+      --challenger ./artifacts/temp/test_metrics_CHARGE_HYD_POWER.json --target CHARGE_HYD_POWER
+    deps:
+    - path: ./artifacts/temp/test_metrics_CHARGE_HYD_POWER.json
+      md5: 82737a7dcf0edda07322ef8fb5149035
+      size: 68
+    - path: ./src/update_registry.py
+      md5: d12ac34a8d35d6ccaf46e95e9a0c35d7
+      size: 2661
+    outs:
+    - path: ./artifacts/registry/model_CHARGE_HYD_POWER.h5
+      md5: 62eefd9a7927da3277ccb7844cef4bb9
+      size: 353896
+    - path: ./artifacts/registry/test_metrics_CHARGE_HYD_POWER.json
+      md5: 82737a7dcf0edda07322ef8fb5149035
+      size: 68
+    - path: ./artifacts/registry/val_metrics_CHARGE_HYD_POWER.json
+      md5: 47a4a748318acb69b87f81bac84b1541
+      size: 146
+  train@MAIN_COOLER_POWER:
+    cmd: python ./src/train.py --scaled_data_file ./data/processed/scaled_train.parquet
+      --val_metrics_file ./artifacts/temp/val_metrics_MAIN_COOLER_POWER.json --model
+      ./artifacts/temp/model_MAIN_COOLER_POWER.h5 --target MAIN_COOLER_POWER
+    deps:
+    - path: ./data/processed/scaled_train.parquet
+      md5: aeeeef5cf16a29bcad1342581e34e7a6
+      size: 14403046
+    - path: ./src/train.py
+      md5: 14d6fa6d8d5e940ea9ad5c88f115a9ed
+      size: 5234
+    params:
+      params.yaml:
+        train.batch_size: 128
+        train.epochs: 3
+        train.folds: 5
+        train.learning_rate: 0.1
+        train.lookback: 120
+        train.lstm_units: 100
+        train.patience: 25
+        train.univariate: true
+        train.val_size: 0.2
+        train.verbose: 2
+    outs:
+    - path: ./artifacts/temp/model_MAIN_COOLER_POWER.h5
+      md5: c3768135f85837a4b5c4622a7a13b76e
+      size: 354928
+    - path: ./artifacts/temp/val_metrics_MAIN_COOLER_POWER.json
+      md5: a3429bd451c20b8d4e7ee105864da283
+      size: 144
+  evaluate@SERVO_HYD_POWER:
+    cmd: python ./src/evaluate.py --scaled_data_file ./data/processed/scaled_test.parquet
+      --model ./artifacts/temp/model_SERVO_HYD_POWER.h5 --test_metrics ./artifacts/temp/test_metrics_SERVO_HYD_POWER.json
+      --target SERVO_HYD_POWER
+    deps:
+    - path: ./artifacts/temp/model_SERVO_HYD_POWER.h5
+      md5: fc65601bc784a56be3947130dc29a0af
+      size: 354928
+    - path: ./data/processed/scaled_test.parquet
+      md5: d535cb84853aeb45f886a7325bd0a56d
+      size: 4083567
+    - path: ./src/evaluate.py
+      md5: 323806a829a544a75b979ffdb33187e8
+      size: 2282
+    params:
+      params.yaml:
+        train.batch_size: 128
+        train.lookback: 120
+        train.univariate: true
+        train.verbose: 2
+    outs:
+    - path: ./artifacts/temp/test_metrics_SERVO_HYD_POWER.json
+      md5: f7a95922a84072cd2b9bda9a92c178c7
+      size: 70
+  train@LOAD_POWER:
+    cmd: python ./src/train.py --scaled_data_file ./data/processed/scaled_train.parquet
+      --val_metrics_file ./artifacts/temp/val_metrics_LOAD_POWER.json --model ./artifacts/temp/model_LOAD_POWER.h5
+      --target LOAD_POWER
+    deps:
+    - path: ./data/processed/scaled_train.parquet
+      md5: aeeeef5cf16a29bcad1342581e34e7a6
+      size: 14403046
+    - path: ./src/train.py
+      md5: 14d6fa6d8d5e940ea9ad5c88f115a9ed
+      size: 5234
+    params:
+      params.yaml:
+        train.batch_size: 128
+        train.epochs: 3
+        train.folds: 5
+        train.learning_rate: 0.1
+        train.lookback: 120
+        train.lstm_units: 100
+        train.patience: 25
+        train.univariate: true
+        train.val_size: 0.2
+        train.verbose: 2
+    outs:
+    - path: ./artifacts/temp/model_LOAD_POWER.h5
+      md5: 0b50d11285e57305e094d01c5d5f30eb
+      size: 354928
+    - path: ./artifacts/temp/val_metrics_LOAD_POWER.json
+      md5: 276858e193cb6ed1ba81fa2581344cd6
+      size: 146
+  evaluate@LOAD_POWER:
+    cmd: python ./src/evaluate.py --scaled_data_file ./data/processed/scaled_test.parquet
+      --model ./artifacts/temp/model_LOAD_POWER.h5 --test_metrics ./artifacts/temp/test_metrics_LOAD_POWER.json
+      --target LOAD_POWER
+    deps:
+    - path: ./artifacts/temp/model_LOAD_POWER.h5
+      md5: 0b50d11285e57305e094d01c5d5f30eb
+      size: 354928
+    - path: ./data/processed/scaled_test.parquet
+      md5: d535cb84853aeb45f886a7325bd0a56d
+      size: 4083567
+    - path: ./src/evaluate.py
+      md5: 323806a829a544a75b979ffdb33187e8
+      size: 2282
+    params:
+      params.yaml:
+        train.batch_size: 128
+        train.lookback: 120
+        train.univariate: true
+        train.verbose: 2
+    outs:
+    - path: ./artifacts/temp/test_metrics_LOAD_POWER.json
+      md5: 23815fb065101f0861ed904d9793720c
+      size: 66
+  update_registry@LOAD_POWER:
+    cmd: python ./src/update_registry.py --champion ./artifacts/temp/registry/test_metrics_LOAD_POWER.json
+      --challenger ./artifacts/temp/test_metrics_LOAD_POWER.json --target LOAD_POWER
+    deps:
+    - path: ./artifacts/temp/test_metrics_LOAD_POWER.json
+      md5: 23815fb065101f0861ed904d9793720c
+      size: 66
+    - path: ./src/update_registry.py
+      md5: d12ac34a8d35d6ccaf46e95e9a0c35d7
+      size: 2661
+    outs:
+    - path: ./artifacts/registry/model_LOAD_POWER.h5
+      md5: 946961624b58d61ca50a6ececdc8e7e8
+      size: 353896
+    - path: ./artifacts/registry/test_metrics_LOAD_POWER.json
+      md5: 23815fb065101f0861ed904d9793720c
+      size: 66
+    - path: ./artifacts/registry/val_metrics_LOAD_POWER.json
+      md5: 276858e193cb6ed1ba81fa2581344cd6
+      size: 146
+  evaluate@MAIN_COOLER_POWER:
+    cmd: python ./src/evaluate.py --scaled_data_file ./data/processed/scaled_test.parquet
+      --model ./artifacts/temp/model_MAIN_COOLER_POWER.h5 --test_metrics ./artifacts/temp/test_metrics_MAIN_COOLER_POWER.json
+      --target MAIN_COOLER_POWER
+    deps:
+    - path: ./artifacts/temp/model_MAIN_COOLER_POWER.h5
+      md5: c3768135f85837a4b5c4622a7a13b76e
+      size: 354928
+    - path: ./data/processed/scaled_test.parquet
+      md5: d535cb84853aeb45f886a7325bd0a56d
+      size: 4083567
+    - path: ./src/evaluate.py
+      md5: 323806a829a544a75b979ffdb33187e8
+      size: 2282
+    params:
+      params.yaml:
+        train.batch_size: 128
+        train.lookback: 120
+        train.univariate: true
+        train.verbose: 2
+    outs:
+    - path: ./artifacts/temp/test_metrics_MAIN_COOLER_POWER.json
+      md5: a2da53b22f29627b49b4887a84e006d8
+      size: 64
+  train@SCAVENGE_POWER:
+    cmd: python ./src/train.py --scaled_data_file ./data/processed/scaled_train.parquet
+      --val_metrics_file ./artifacts/temp/val_metrics_SCAVENGE_POWER.json --model
+      ./artifacts/temp/model_SCAVENGE_POWER.h5 --target SCAVENGE_POWER
+    deps:
+    - path: ./data/processed/scaled_train.parquet
+      md5: aeeeef5cf16a29bcad1342581e34e7a6
+      size: 14403046
+    - path: ./src/train.py
+      md5: 14d6fa6d8d5e940ea9ad5c88f115a9ed
+      size: 5234
+    params:
+      params.yaml:
+        train.batch_size: 128
+        train.epochs: 3
+        train.folds: 5
+        train.learning_rate: 0.1
+        train.lookback: 120
+        train.lstm_units: 100
+        train.patience: 25
+        train.univariate: true
+        train.val_size: 0.2
+        train.verbose: 2
+    outs:
+    - path: ./artifacts/temp/model_SCAVENGE_POWER.h5
+      md5: 52b4d6494aca48f321b76f0385dbcdf2
+      size: 354928
+    - path: ./artifacts/temp/val_metrics_SCAVENGE_POWER.json
+      md5: eff78a6014066731d4c5cef8255f0c9f
+      size: 146
+  evaluate@SCAVENGE_POWER:
+    cmd: python ./src/evaluate.py --scaled_data_file ./data/processed/scaled_test.parquet
+      --model ./artifacts/temp/model_SCAVENGE_POWER.h5 --test_metrics ./artifacts/temp/test_metrics_SCAVENGE_POWER.json
+      --target SCAVENGE_POWER
+    deps:
+    - path: ./artifacts/temp/model_SCAVENGE_POWER.h5
+      md5: 52b4d6494aca48f321b76f0385dbcdf2
+      size: 354928
+    - path: ./data/processed/scaled_test.parquet
+      md5: d535cb84853aeb45f886a7325bd0a56d
+      size: 4083567
+    - path: ./src/evaluate.py
+      md5: 323806a829a544a75b979ffdb33187e8
+      size: 2282
+    params:
+      params.yaml:
+        train.batch_size: 128
+        train.lookback: 120
+        train.univariate: true
+        train.verbose: 2
+    outs:
+    - path: ./artifacts/temp/test_metrics_SCAVENGE_POWER.json
+      md5: 5103a6e18fb58874f4ac0b062db1148f
+      size: 68
+  update_registry@SCAVENGE_POWER:
+    cmd: python ./src/update_registry.py --champion ./artifacts/temp/registry/test_metrics_SCAVENGE_POWER.json
+      --challenger ./artifacts/temp/test_metrics_SCAVENGE_POWER.json --target SCAVENGE_POWER
+    deps:
+    - path: ./artifacts/temp/test_metrics_SCAVENGE_POWER.json
+      md5: 5103a6e18fb58874f4ac0b062db1148f
+      size: 68
+    - path: ./src/update_registry.py
+      md5: d12ac34a8d35d6ccaf46e95e9a0c35d7
+      size: 2661
+    outs:
+    - path: ./artifacts/registry/model_SCAVENGE_POWER.h5
+      md5: 491e9ad28c0b13e5e53d2c3decebe70a
+      size: 353896
+    - path: ./artifacts/registry/test_metrics_SCAVENGE_POWER.json
+      md5: 5103a6e18fb58874f4ac0b062db1148f
+      size: 68
+    - path: ./artifacts/registry/val_metrics_SCAVENGE_POWER.json
+      md5: eff78a6014066731d4c5cef8255f0c9f
+      size: 146
+  train@CHARGE_MECH_POWER:
+    cmd: python ./src/train.py --scaled_data_file ./data/processed/scaled_train.parquet
+      --val_metrics_file ./artifacts/temp/val_metrics_CHARGE_MECH_POWER.json --model
+      ./artifacts/temp/model_CHARGE_MECH_POWER.h5 --target CHARGE_MECH_POWER
+    deps:
+    - path: ./data/processed/scaled_train.parquet
+      md5: aeeeef5cf16a29bcad1342581e34e7a6
+      size: 14403046
+    - path: ./src/train.py
+      md5: 14d6fa6d8d5e940ea9ad5c88f115a9ed
+      size: 5234
+    params:
+      params.yaml:
+        train.batch_size: 128
+        train.epochs: 3
+        train.folds: 5
+        train.learning_rate: 0.1
+        train.lookback: 120
+        train.lstm_units: 100
+        train.patience: 25
+        train.univariate: true
+        train.val_size: 0.2
+        train.verbose: 2
+    outs:
+    - path: ./artifacts/temp/model_CHARGE_MECH_POWER.h5
+      md5: 25065ad3d9dafba49d87ef1b08b412f2
+      size: 354928
+    - path: ./artifacts/temp/val_metrics_CHARGE_MECH_POWER.json
+      md5: 47750a0c4a32ed12d56db02df20cb366
+      size: 145
+  evaluate@CHARGE_MECH_POWER:
+    cmd: python ./src/evaluate.py --scaled_data_file ./data/processed/scaled_test.parquet
+      --model ./artifacts/temp/model_CHARGE_MECH_POWER.h5 --test_metrics ./artifacts/temp/test_metrics_CHARGE_MECH_POWER.json
+      --target CHARGE_MECH_POWER
+    deps:
+    - path: ./artifacts/temp/model_CHARGE_MECH_POWER.h5
+      md5: 25065ad3d9dafba49d87ef1b08b412f2
+      size: 354928
+    - path: ./data/processed/scaled_test.parquet
+      md5: d535cb84853aeb45f886a7325bd0a56d
+      size: 4083567
+    - path: ./src/evaluate.py
+      md5: 323806a829a544a75b979ffdb33187e8
+      size: 2282
+    params:
+      params.yaml:
+        train.batch_size: 128
+        train.lookback: 120
+        train.univariate: true
+        train.verbose: 2
+    outs:
+    - path: ./artifacts/temp/test_metrics_CHARGE_MECH_POWER.json
+      md5: 55a72a08bb0967bc48196359abc5681a
+      size: 66
+  train@SERVO_MECH_POWER:
+    cmd: python ./src/train.py --scaled_data_file ./data/processed/scaled_train.parquet
+      --val_metrics_file ./artifacts/temp/val_metrics_SERVO_MECH_POWER.json --model
+      ./artifacts/temp/model_SERVO_MECH_POWER.h5 --target SERVO_MECH_POWER
+    deps:
+    - path: ./data/processed/scaled_train.parquet
+      md5: aeeeef5cf16a29bcad1342581e34e7a6
+      size: 14403046
+    - path: ./src/train.py
+      md5: 14d6fa6d8d5e940ea9ad5c88f115a9ed
+      size: 5234
+    params:
+      params.yaml:
+        train.batch_size: 128
+        train.epochs: 3
+        train.folds: 5
+        train.learning_rate: 0.1
+        train.lookback: 120
+        train.lstm_units: 100
+        train.patience: 25
+        train.univariate: true
+        train.val_size: 0.2
+        train.verbose: 2
+    outs:
+    - path: ./artifacts/temp/model_SERVO_MECH_POWER.h5
+      md5: 409f0210922ee3afc410ab81ab1e2949
+      size: 354928
+    - path: ./artifacts/temp/val_metrics_SERVO_MECH_POWER.json
+      md5: ae7b0459c4039a78de35812da5dd64fe
+      size: 144
+  evaluate@SERVO_MECH_POWER:
+    cmd: python ./src/evaluate.py --scaled_data_file ./data/processed/scaled_test.parquet
+      --model ./artifacts/temp/model_SERVO_MECH_POWER.h5 --test_metrics ./artifacts/temp/test_metrics_SERVO_MECH_POWER.json
+      --target SERVO_MECH_POWER
+    deps:
+    - path: ./artifacts/temp/model_SERVO_MECH_POWER.h5
+      md5: 409f0210922ee3afc410ab81ab1e2949
+      size: 354928
+    - path: ./data/processed/scaled_test.parquet
+      md5: d535cb84853aeb45f886a7325bd0a56d
+      size: 4083567
+    - path: ./src/evaluate.py
+      md5: 323806a829a544a75b979ffdb33187e8
+      size: 2282
+    params:
+      params.yaml:
+        train.batch_size: 128
+        train.lookback: 120
+        train.univariate: true
+        train.verbose: 2
+    outs:
+    - path: ./artifacts/temp/test_metrics_SERVO_MECH_POWER.json
+      md5: 88770c6f2c4686f138fc5adaf5f11b82
+      size: 66
+  update_registry@SERVO_MECH_POWER:
+    cmd: python ./src/update_registry.py --champion ./artifacts/temp/registry/test_metrics_SERVO_MECH_POWER.json
+      --challenger ./artifacts/temp/test_metrics_SERVO_MECH_POWER.json --target SERVO_MECH_POWER
+    deps:
+    - path: ./artifacts/temp/test_metrics_SERVO_MECH_POWER.json
+      md5: 88770c6f2c4686f138fc5adaf5f11b82
+      size: 66
+    - path: ./src/update_registry.py
+      md5: d12ac34a8d35d6ccaf46e95e9a0c35d7
+      size: 2661
+    outs:
+    - path: ./artifacts/registry/model_SERVO_MECH_POWER.h5
+      md5: c40b4ec689cf29de01ed59d91fa264ed
+      size: 353896
+    - path: ./artifacts/registry/test_metrics_SERVO_MECH_POWER.json
+      md5: 88770c6f2c4686f138fc5adaf5f11b82
+      size: 66
+    - path: ./artifacts/registry/val_metrics_SERVO_MECH_POWER.json
+      md5: ae7b0459c4039a78de35812da5dd64fe
+      size: 144
+  evaluate@GEARBOX_COOLER_POWER:
+    cmd: python ./src/evaluate.py --scaled_data_file ./data/processed/scaled_test.parquet
+      --model ./artifacts/temp/model_GEARBOX_COOLER_POWER.h5 --test_metrics ./artifacts/temp/test_metrics_GEARBOX_COOLER_POWER.json
+      --target GEARBOX_COOLER_POWER
+    deps:
+    - path: ./artifacts/temp/model_GEARBOX_COOLER_POWER.h5
+      md5: 11b5656f347f7d976f49164a61055946
+      size: 354928
+    - path: ./data/processed/scaled_test.parquet
+      md5: d535cb84853aeb45f886a7325bd0a56d
+      size: 4083567
+    - path: ./src/evaluate.py
+      md5: 323806a829a544a75b979ffdb33187e8
+      size: 2282
+    params:
+      params.yaml:
+        train.batch_size: 128
+        train.lookback: 120
+        train.univariate: true
+        train.verbose: 2
+    outs:
+    - path: ./artifacts/temp/test_metrics_GEARBOX_COOLER_POWER.json
+      md5: 612125c06445d57114c4e7797d6ae101
+      size: 66
+  evaluate@VIBRATION_1:
+    cmd: python ./src/evaluate.py --scaled_data_file ./data/processed/scaled_test.parquet
+      --model ./artifacts/temp/model_VIBRATION_1.h5 --test_metrics ./artifacts/temp/test_metrics_VIBRATION_1.json
+      --target VIBRATION_1
+    deps:
+    - path: ./artifacts/temp/model_VIBRATION_1.h5
+      md5: 932237923eff44fae93f1d78ac1cbe5e
+      size: 354928
+    - path: ./data/processed/scaled_test.parquet
+      md5: d535cb84853aeb45f886a7325bd0a56d
+      size: 4083567
+    - path: ./src/evaluate.py
+      md5: 323806a829a544a75b979ffdb33187e8
+      size: 2282
+    params:
+      params.yaml:
+        train.batch_size: 128
+        train.lookback: 120
+        train.univariate: true
+        train.verbose: 2
+    outs:
+    - path: ./artifacts/temp/test_metrics_VIBRATION_1.json
+      md5: a85cf3c220d4a4e006f42c3b2f6b38e2
+      size: 68
+  update_registry@VIBRATION_1:
+    cmd: python ./src/update_registry.py --champion ./artifacts/temp/registry/test_metrics_VIBRATION_1.json
+      --challenger ./artifacts/temp/test_metrics_VIBRATION_1.json --target VIBRATION_1
+    deps:
+    - path: ./artifacts/temp/test_metrics_VIBRATION_1.json
+      md5: a85cf3c220d4a4e006f42c3b2f6b38e2
+      size: 68
+    - path: ./src/update_registry.py
+      md5: d12ac34a8d35d6ccaf46e95e9a0c35d7
+      size: 2661
+    outs:
+    - path: ./artifacts/registry/model_VIBRATION_1.h5
+      md5: 1467c48d724b850233057fb4a9707938
+      size: 353896
+    - path: ./artifacts/registry/test_metrics_VIBRATION_1.json
+      md5: a85cf3c220d4a4e006f42c3b2f6b38e2
+      size: 68
+    - path: ./artifacts/registry/val_metrics_VIBRATION_1.json
+      md5: a94c62bbb06a50f7d396051c653055f1
+      size: 149
+  update_registry@MAIN_COOLER_POWER:
+    cmd: python ./src/update_registry.py --champion ./artifacts/temp/registry/test_metrics_MAIN_COOLER_POWER.json
+      --challenger ./artifacts/temp/test_metrics_MAIN_COOLER_POWER.json --target MAIN_COOLER_POWER
+    deps:
+    - path: ./artifacts/temp/test_metrics_MAIN_COOLER_POWER.json
+      md5: a2da53b22f29627b49b4887a84e006d8
+      size: 64
+    - path: ./src/update_registry.py
+      md5: d12ac34a8d35d6ccaf46e95e9a0c35d7
+      size: 2661
+    outs:
+    - path: ./artifacts/registry/model_MAIN_COOLER_POWER.h5
+      md5: 7b1a7b7048a75a8258140557b12c00b9
+      size: 353896
+    - path: ./artifacts/registry/test_metrics_MAIN_COOLER_POWER.json
+      md5: a2da53b22f29627b49b4887a84e006d8
+      size: 64
+    - path: ./artifacts/registry/val_metrics_MAIN_COOLER_POWER.json
+      md5: a3429bd451c20b8d4e7ee105864da283
+      size: 144
+  update_registry@DRIVE_POWER:
+    cmd: python ./src/update_registry.py --champion ./artifacts/temp/registry/test_metrics_DRIVE_POWER.json
+      --challenger ./artifacts/temp/test_metrics_DRIVE_POWER.json --target DRIVE_POWER
+    deps:
+    - path: ./artifacts/temp/test_metrics_DRIVE_POWER.json
+      md5: 06442fb8aa6d4441c7b795274039bb8e
+      size: 66
+    - path: ./src/update_registry.py
+      md5: d12ac34a8d35d6ccaf46e95e9a0c35d7
+      size: 2661
+    outs:
+    - path: ./artifacts/registry/model_DRIVE_POWER.h5
+      md5: a5748285e798bced499aa1824b8cd3bc
+      size: 353896
+    - path: ./artifacts/registry/test_metrics_DRIVE_POWER.json
+      md5: 06442fb8aa6d4441c7b795274039bb8e
+      size: 66
+    - path: ./artifacts/registry/val_metrics_DRIVE_POWER.json
+      md5: 1a39dfe768435114b570c1b329d9e495
+      size: 142
+  update_registry@VIBRATION_2:
+    cmd: python ./src/update_registry.py --champion ./artifacts/temp/registry/test_metrics_VIBRATION_2.json
+      --challenger ./artifacts/temp/test_metrics_VIBRATION_2.json --target VIBRATION_2
+    deps:
+    - path: ./artifacts/temp/test_metrics_VIBRATION_2.json
+      md5: 657049a95ca822c34107cf204644441b
+      size: 66
+    - path: ./src/update_registry.py
+      md5: d12ac34a8d35d6ccaf46e95e9a0c35d7
+      size: 2661
+    outs:
+    - path: ./artifacts/registry/model_VIBRATION_2.h5
+      md5: 52597d625ebdaeec7d12558c82489575
+      size: 353896
+    - path: ./artifacts/registry/test_metrics_VIBRATION_2.json
+      md5: 657049a95ca822c34107cf204644441b
+      size: 66
+    - path: ./artifacts/registry/val_metrics_VIBRATION_2.json
+      md5: 3749948092e689dac11565a37ee4483b
+      size: 148
+  update_registry@SERVO_HYD_POWER:
+    cmd: python ./src/update_registry.py --champion ./artifacts/temp/registry/test_metrics_SERVO_HYD_POWER.json
+      --challenger ./artifacts/temp/test_metrics_SERVO_HYD_POWER.json --target SERVO_HYD_POWER
+    deps:
+    - path: ./artifacts/temp/test_metrics_SERVO_HYD_POWER.json
+      md5: f7a95922a84072cd2b9bda9a92c178c7
+      size: 70
+    - path: ./src/update_registry.py
+      md5: d12ac34a8d35d6ccaf46e95e9a0c35d7
+      size: 2661
+    outs:
+    - path: ./artifacts/registry/model_SERVO_HYD_POWER.h5
+      md5: b2ab595d496beeec0969f20ba040839a
+      size: 353896
+    - path: ./artifacts/registry/test_metrics_SERVO_HYD_POWER.json
+      md5: f7a95922a84072cd2b9bda9a92c178c7
+      size: 70
+    - path: ./artifacts/registry/val_metrics_SERVO_HYD_POWER.json
+      md5: c000f147be14fbc4231d47357dc01ed1
+      size: 145
+  update_registry@GEARBOX_COOLER_POWER:
+    cmd: python ./src/update_registry.py --champion ./artifacts/temp/registry/test_metrics_GEARBOX_COOLER_POWER.json
+      --challenger ./artifacts/temp/test_metrics_GEARBOX_COOLER_POWER.json --target
+      GEARBOX_COOLER_POWER
+    deps:
+    - path: ./artifacts/temp/test_metrics_GEARBOX_COOLER_POWER.json
+      md5: 612125c06445d57114c4e7797d6ae101
+      size: 66
+    - path: ./src/update_registry.py
+      md5: d12ac34a8d35d6ccaf46e95e9a0c35d7
+      size: 2661
+    outs:
+    - path: ./artifacts/registry/model_GEARBOX_COOLER_POWER.h5
+      md5: c1a7bc9f3452691f31e4bb60e9dd0cd3
+      size: 353896
+    - path: ./artifacts/registry/test_metrics_GEARBOX_COOLER_POWER.json
+      md5: 612125c06445d57114c4e7797d6ae101
+      size: 66
+    - path: ./artifacts/registry/val_metrics_GEARBOX_COOLER_POWER.json
+      md5: 6ae15d519c7ee901e6a5d7ff113bfba7
+      size: 143
+  update_registry@CHARGE_MECH_POWER:
+    cmd: python ./src/update_registry.py --champion ./artifacts/temp/registry/test_metrics_CHARGE_MECH_POWER.json
+      --challenger ./artifacts/temp/test_metrics_CHARGE_MECH_POWER.json --target CHARGE_MECH_POWER
+    deps:
+    - path: ./artifacts/temp/test_metrics_CHARGE_MECH_POWER.json
+      md5: 55a72a08bb0967bc48196359abc5681a
+      size: 66
+    - path: ./src/update_registry.py
+      md5: d12ac34a8d35d6ccaf46e95e9a0c35d7
+      size: 2661
+    outs:
+    - path: ./artifacts/registry/model_CHARGE_MECH_POWER.h5
+      md5: 48d103518b6a125353600cde9fc9f7a4
+      size: 353896
+    - path: ./artifacts/registry/test_metrics_CHARGE_MECH_POWER.json
+      md5: 55a72a08bb0967bc48196359abc5681a
+      size: 66
+    - path: ./artifacts/registry/val_metrics_CHARGE_MECH_POWER.json
+      md5: 47750a0c4a32ed12d56db02df20cb366
+      size: 145

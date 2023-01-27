@@ -1,0 +1,121 @@
+params:
+  - params.yaml
+stages:
+  read_raw_data:
+    cmd: python ./src/read_raw_data.py
+      --raw_data_path ../data/raw
+      --all_raw_data_file ../data/interim/all_raw.csv
+    deps:
+      - ./src/read_raw_data.py
+      - ../data/raw
+    outs:
+      - ../data/interim/all_raw.csv
+  preprocess:
+    cmd: python ./src/preprocess.py
+      --interim_features_file ../conf/interim_features.json
+      --all_raw_data_file ../data/interim/all_raw.csv
+      --interim_data_file ../data/interim/interim.parquet
+    deps:
+      - ./src/preprocess.py
+      - ../conf/interim_features.json
+      - ../data/interim/all_raw.csv
+    outs:
+      - ../data/interim/interim.parquet
+      - ../conf/forecast_features.json
+  split:
+    cmd: python ./src/split.py
+      --interim_data_file ../data/interim/interim.parquet
+      --forecast_features_file ../conf/forecast_features.json
+      --train_data_file ../data/processed/train.parquet
+      --test_data_file ../data/processed/test.parquet
+    deps:
+      - ./src/split.py
+      - ../data/interim/interim.parquet
+      - ../conf/forecast_features.json
+    params:
+      - split.train_size
+    outs:
+      - ../data/processed/train.parquet
+      - ../data/processed/test.parquet
+  scale_train:
+    cmd: python ./src/scale.py
+      --data_file ../data/processed/train.parquet
+      --scaled_data_file ../data/processed/scaled_train.parquet
+      --scaler ../artifacts/registry/scaler.joblib
+    deps:
+      - ./src/scale.py
+      - ../data/processed/train.parquet
+    outs:
+      - ../data/processed/scaled_train.parquet
+      - ../artifacts/registry/scaler.joblib
+  scale_test:
+    cmd: python ./src/scale.py
+      --data ../data/processed/test.parquet
+      --scaled_data ../data/processed/scaled_test.parquet
+      --scaler ../artifacts/registry/scaler.joblib
+      --test
+    deps:
+      - ./src/scale.py
+      - ../data/processed/test.parquet
+      - ../artifacts/registry/scaler.joblib
+    outs:
+      - ../data/processed/scaled_test.parquet
+  train:
+    foreach: ${features}
+    do:
+      cmd: python ./src/train.py
+        --scaled_data_file ../data/processed/scaled_train.parquet
+        --val_metrics_file ../artifacts/temp/val_metrics_${item}.json
+        --model ../artifacts/temp/model_${item}.h5
+        --target ${item}
+      deps:
+        - ./src/train.py
+        - ../data/processed/scaled_train.parquet
+      params:
+        - train.lookback
+        - train.learning_rate
+        - train.batch_size
+        - train.epochs
+        - train.patience
+        - train.folds
+        - train.val_size
+        - train.lstm_units
+        - train.verbose
+        - train.univariate
+      outs:
+        - ../artifacts/temp/model_${item}.h5
+      metrics:
+        - ../artifacts/temp/val_metrics_${item}.json
+  evaluate:
+    foreach: ${features}
+    do:
+      cmd: python ./src/evaluate.py
+        --scaled_data_file ../data/processed/scaled_test.parquet
+        --model ../artifacts/temp/model_${item}.h5
+        --test_metrics ../artifacts/temp/test_metrics_${item}.json
+        --target ${item}
+      deps:
+        - ./src/evaluate.py
+        - ../data/processed/scaled_test.parquet
+        - ../artifacts/temp/model_${item}.h5
+      params:
+        - train.lookback
+        - train.batch_size
+        - train.univariate
+        - train.verbose
+      metrics:
+        - ../artifacts/temp/test_metrics_${item}.json
+  update_registry:
+    foreach: ${features}
+    do:
+      cmd: python ./src/update_registry.py
+        --champion ../artifacts/temp/registry/test_metrics_${item}.json
+        --challenger ../artifacts/temp/test_metrics_${item}.json
+        --target ${item}
+      deps:
+        - ./src/update_registry.py
+        - ../artifacts/temp/test_metrics_${item}.json
+      outs:
+        - ../artifacts/registry/test_metrics_${item}.json
+        - ../artifacts/registry/val_metrics_${item}.json
+        - ../artifacts/registry/model_${item}.h5
