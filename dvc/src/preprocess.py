@@ -9,6 +9,7 @@ import pandas as pd
 
 logging.basicConfig(level=logging.INFO)
 
+
 def preprocess(interim_features_file: str, all_raw_data_file: str,
                interim_data_file: str) -> None:
     """
@@ -16,8 +17,8 @@ def preprocess(interim_features_file: str, all_raw_data_file: str,
     file, then creates a new DataFrame with only the columns specified in the
     interim features file. The function also drops rows containing NA values and
     rows where STEP is equal to 0. It downcasts floats to float32, which saves on
-    memory usage when training models later. Finally, it adds some time-based 
-    features such as RUNNING_SECONDS (the number of seconds since start of run) 
+    memory usage when training models later. Finally, it adds some time-based
+    features such as RUNNING_SECONDS (the number of seconds since start of run)
     and RUNNING_HOURS (RUNNING_SECONDS converted to hours) and power-based features.
     The interim data is then saved.
 

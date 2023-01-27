@@ -1,6 +1,5 @@
 from kfp.v2.dsl import (Artifact, Dataset, Input, Metrics, Model, Output,
                         component)
-
 from utils.dependencies import (GOOGLE_CLOUD_AIPLATFORM, PANDAS, PROTOBUF,
                                 PYARROW, SKLEARN, TF_TRAIN_GPU_IMAGE)
 
@@ -18,7 +17,7 @@ def train(project_id: str, region: str, feature: str, lookback: int,
           parameters: Output[Artifact]) -> None:
     """
     The train function trains a model to predict the next value in a time series.
-    
+
     Args:
         project_id: str: Specify the project id where the ai platform training and prediction resources will be created
         region: str: Specify the region in which to run the training job

@@ -8,17 +8,18 @@ from keras.models import load_model
 
 logging.basicConfig(level=logging.INFO)
 
+
 def update_registry(champion_metrics_path: str, challenger_metrics_path: str,
                     target: str) -> None:
     """
     The update_registry function updates the champion model in the registry with a new challenger.
     If there is no champion, then it uploads the challenger to the registry.
-        
+
     Args:
         champion_metrics_path: str: Specify the path to the file containing the champion model's metrics
         challenger_metrics_path: str: Specify the path to the challenger metrics
         target: str: Specify the model that is being updated
-    
+
     Returns:
         None
     """
@@ -40,11 +41,11 @@ def update_registry(champion_metrics_path: str, challenger_metrics_path: str,
 def upload_challenger(target: str, challenger_metrics: dict) -> None:
     """
     The upload_challenger function uploads the challenger model to the registry.
-    
+
     Args:
         target: str: Specify the target column for which we want to upload a challenger model
         challenger_metrics: dict: Store the metrics of the challenger model
-    
+
     Returns:
         None
     """

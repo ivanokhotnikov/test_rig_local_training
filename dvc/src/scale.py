@@ -13,9 +13,9 @@ logging.basicConfig(level=logging.INFO)
 def scale(data_file: str, scaled_data_file: str, scaler_path: str,
           test: bool) -> None:
     """
-    The scale function takes a data path, a scaled data path, and the name of 
-    the scaler file. If test is False (default), it will fit the StandardScaler on 
-    the training set and save it to disk. If test is True, then it will load the 
+    The scale function takes a data path, a scaled data path, and the name of
+    the scaler file. If test is False (default), it will fit the StandardScaler on
+    the training set and save it to disk. If test is True, then it will load the
     scaler from disk and use that scaler to transform the testing set.
 
     Args:

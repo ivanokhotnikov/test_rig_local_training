@@ -22,9 +22,9 @@ def training_pipeline(project_id: str, region: str, raw_data_path: str,
                       patience: int) -> None:
     """
     The training_pipeline function is a pipeline that trains and evaluates the model.
-    It takes in raw data, builds features, splits the data into train and test sets, 
+    It takes in raw data, builds features, splits the data into train and test sets,
     trains the model on the training set, evaluates it on test set and uploads it to GCP registry.
-    
+
     Args:
         project_id: str: Specify the project id of the gcp project where you want to run your pipeline
         region: str: Specify the gcp region where the training job will be executed
@@ -114,7 +114,7 @@ def get_args() -> argparse.Namespace:
     """
     The get_args function parses the arguments passed to the script.
     It returns a Namespace object containing all of the arguments
-      
+
     Returns:
         An argparse
     """
@@ -140,9 +140,9 @@ def get_args() -> argparse.Namespace:
 
 def get_envs() -> dict:
     """
-    The get_envs function returns a dictionary of environment variables that are 
+    The get_envs function returns a dictionary of environment variables that are
     required by the pipeline.
-    
+
     Returns:
         A dictionary of the environment variables that are needed to run this pipeline
     """

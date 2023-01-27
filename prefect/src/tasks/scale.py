@@ -2,9 +2,10 @@ import os
 
 import joblib
 import pandas as pd
-from prefect import task
 from prefect.tasks import task_input_hash
 from sklearn.preprocessing import StandardScaler
+
+from prefect import task
 
 
 @task(cache_key_fn=task_input_hash, refresh_cache=True)

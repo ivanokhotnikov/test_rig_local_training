@@ -1,14 +1,13 @@
 import os
-from datetime import datetime
 
 import numpy as np
 import pandas as pd
-from prefect import task
 from prefect.tasks import task_input_hash
 from sklearn.model_selection import TimeSeriesSplit
 from tensorflow import keras
-
 from utils.create_sequences import create_sequences
+
+from prefect import task
 
 
 @task(cache_key_fn=task_input_hash, refresh_cache=False)

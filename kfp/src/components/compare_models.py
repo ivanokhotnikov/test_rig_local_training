@@ -1,5 +1,5 @@
-from utils.dependencies import PYTHON310
 from kfp.v2.dsl import Input, Metrics, component
+from utils.dependencies import PYTHON310
 
 
 @component(base_image=PYTHON310)
@@ -16,7 +16,7 @@ def compare_models(challenger_metrics: Input[Metrics],
         champion_metrics (Input[Metrics]): Champion metrics
         evaluation_metric (str): Evaluation metrics to use for comparison, default 'root_mean_squared_error'
         absolute_difference (float): The difference to use in comparison, default 0.0
-    
+
     Returns:
         chal_is_better (bool): True if challenger has superior metrics than the champion
     """
@@ -32,7 +32,7 @@ def compare_models(challenger_metrics: Input[Metrics],
             evaluation_metric not in challenger_metrics_dict.keys()):
         raise ValueError(f'{evaluation_metric} is not present in both metrics')
     if absolute_difference is None:
-        logging.info("Since absolute_difference is None, setting it to 0.")
+        logging.info('Since absolute_difference is None, setting it to 0.')
         absolute_difference = 0.0
     champ_val = champ_metrics_dict[evaluation_metric]
     logging.info(f'Champion metric = {champ_val:.2e}')

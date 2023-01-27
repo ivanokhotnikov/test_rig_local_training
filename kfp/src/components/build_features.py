@@ -1,5 +1,4 @@
 from kfp.v2.dsl import Artifact, Dataset, Input, Output, component
-
 from utils.dependencies import PANDAS, PYARROW, PYTHON310
 
 
@@ -11,7 +10,7 @@ def build_features(features_path: str, processed_data_path: str,
                    processed_features: Output[Artifact]) -> None:
     """
     The build_features function reads the interim data from the interim storage, applies a series of transformations to it and writes two files: processed_data.csv and processed_features.json in the processed data storage and metadata store respectively.
-    
+
     Args:
         features_path: str: Store the processed features in a file
         processed_data_path: str: Store the processed data in a blob storage

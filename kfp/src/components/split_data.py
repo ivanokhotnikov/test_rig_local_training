@@ -1,5 +1,4 @@
 from kfp.v2.dsl import Dataset, Input, Output, component
-
 from utils.dependencies import PANDAS, PYARROW, PYTHON310
 
 
@@ -9,7 +8,7 @@ def split_data(train_data_size: float, processed_data: Input[Dataset],
                test_data: Output[Dataset]) -> None:
     """
     Split processed data into train and test data.
-    
+
     Args:
         train_data_size (float): Train-test split
         processed_data (Input[Dataset]): Processed dataset

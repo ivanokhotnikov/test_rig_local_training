@@ -1,5 +1,4 @@
 from kfp.v2.dsl import Artifact, Input, Metrics, Model, component
-
 from utils.dependencies import (GOOGLE_CLOUD_AIPLATFORM, PROTOBUF, SKLEARN,
                                 TF_TRAIN_CPU_IMAGE)
 
@@ -14,7 +13,7 @@ def upload_model_to_registry(project_id: str, region: str, feature: str,
                              metrics: Input[Metrics]) -> None:
     """
     The upload_model_to_registry function uploads the model, its parameters and metrics to the AI Platform Model Registry.
-    
+
     Args:
         project_id: str: Specify the project id in which to create the model
         region: str: Specify the region where the model will be deployed

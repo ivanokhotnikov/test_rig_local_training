@@ -5,10 +5,9 @@ import os
 from datetime import datetime
 
 import pandas as pd
+from create_sequences import create_sequences
 from dvc.api import params_show
 from keras.models import load_model
-
-from create_sequences import create_sequences
 
 logging.basicConfig(level=logging.INFO)
 
@@ -18,13 +17,13 @@ def evaluate(scaled_data_file: str, model_path: str, test_metrics_path: str,
     """
     The evaluate function loads a model and evaluates it against the test data.
     The function saves the results to a file in JSON format.
-    
+
     Args:
         scaled_data_file: str: Pass the path to the scaled data file
         model_path: str: Load the model from disk
         test_metrics_path: str: Store the test metrics
         target: str: Select the target column from the test dataframe
-    
+
     Returns:
         None
     """

@@ -5,9 +5,9 @@ from datetime import datetime
 
 from dotenv import load_dotenv
 from mlflow import log_metric, log_param, start_run
-from prefect import flow
-
 from tasks import evaluate, preprocess, read_raw_data, scale, split, train
+
+from prefect import flow
 
 
 @flow(name='training workflow')
@@ -15,7 +15,7 @@ def training_workflow(train_split: float, folds: int, lookback: int,
                       val_split: float, epochs: int, batch_size: int,
                       patience: int, lstm_units: int, learning_rate: float,
                       verbose: int, univariate: bool):
-    timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+    timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
     all_raw_df = read_raw_data(
         raw_data_path=os.environ['RAW_DATA_PATH'],
         interim_data_path=os.environ['INTERIM_DATA_PATH'])

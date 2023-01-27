@@ -5,10 +5,10 @@ import optuna
 import pandas as pd
 from dotenv import load_dotenv
 from optuna.integration.mlflow import MLflowCallback
-from prefect import flow
-
 from tasks import evaluate, train
 from training import get_arguments
+
+from prefect import flow
 
 
 @flow(name='tuning workflow')

@@ -7,11 +7,10 @@ from datetime import datetime
 import numpy as np
 import pandas as pd
 import tensorflow as tf
+from create_sequences import create_sequences
 from dvc.api import params_show
 from sklearn.model_selection import TimeSeriesSplit
 from tensorflow import keras
-
-from create_sequences import create_sequences
 
 logging.basicConfig(level=logging.INFO)
 gpus = tf.config.list_physical_devices('GPU')
@@ -27,13 +26,13 @@ def train(scaled_data_file: str, target: str, val_metrics_file: str,
           model_path: str) -> None:
     """
     The train function trains a model on the data.
-    
+
     Args:
         scaled_data_file: str: Specify the path to the parquet file containing the scaled data
         target: str: Specify the target column name
         val_metrics_file: str: Store the metrics of each fold
         model_path: str: Save the model in a file
-    
+
     Returns:
         None
     """

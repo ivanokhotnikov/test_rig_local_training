@@ -13,9 +13,9 @@ logging.basicConfig(level=logging.INFO)
 def split(interim_data_file: str, train_data_file: str, test_data_file: str,
           forecast_features_file: list) -> None:
     """
-    The split function splits the data into train and test sets. 
-    The function takes in an interim data path, a train data path, and a test data path as arguments. 
-    It then reads the interim dataset from the interim data path argument, 
+    The split function splits the data into train and test sets.
+    The function takes in an interim data path, a train data path, and a test data path as arguments.
+    It then reads the interim dataset from the interim data path argument,
     splits it into training and testing datasets based on the size of the training set (as determined by params_show).
     Then it writes those datasets to their respective paths.
 

@@ -1,5 +1,5 @@
-from utils.dependencies import PYTHON310
 from kfp.v2.dsl import Metrics, Output, component
+from utils.dependencies import PYTHON310
 
 
 @component(base_image=PYTHON310)
@@ -10,7 +10,7 @@ def import_champion_metrics(feature: str,
     and adds them to the champion model's metadata. The function takes two arguments:
         - feature: A string indicating which feature is being modeled.
         - champion_metrics: An Output object representing the pipeline's metrics for this feature.
-    
+
     Args:
         feature: str: Specify the feature that is being forecasted
         champion_metrics: Output[Metrics]: Store the champion model's metrics

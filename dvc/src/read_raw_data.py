@@ -13,12 +13,12 @@ def read_raw_data(raw_data_path: str, all_raw_data_file: str) -> None:
     """
     The read_raw_data function reads all the raw data files from a given directory,
     concatenates them into one dataframe and uploads it to the interim storage.
-    
+
 
     Args:
         raw_data_path: str: Specify the path to the folder
         all_raw_data_file: str: Specify the path to the file
-    
+
     Returns:
         None
     """

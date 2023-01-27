@@ -1,5 +1,4 @@
 from kfp.v2.dsl import Dataset, Input, Metrics, Model, Output, component
-
 from utils.dependencies import (GOOGLE_CLOUD_AIPLATFORM, PANDAS, PROTOBUF,
                                 PYARROW, SKLEARN, TF_TRAIN_GPU_IMAGE)
 
@@ -14,7 +13,7 @@ def evaluate(project_id: str, region: str, feature: str, lookback: int,
              eval_metrics: Output[Metrics]) -> None:
     """
     The evaluate function loads the test data, creates a scaler model and a keras model from the training data, and evaluates them against the test data.
-    
+
     Args:
         project_id: str: Specify the project id where the ai platform training and prediction resources will be created
         region: str: Specify the region in which to run the training job

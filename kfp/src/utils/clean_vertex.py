@@ -15,7 +15,7 @@ def vertex(custom_jobs: bool, pipeline_jobs: bool, artifacts: bool,
            pipelines_uri: str, **kwargs):
     """
     The vertex function cleans up all AI Platform resources in a given region.
-    
+
     Args:
         custom_jobs: bool: Clean custom jobs
         pipeline_jobs: bool: Clean the pipeline jobs
@@ -121,7 +121,7 @@ def get_args():
     """
     The get_args function parses the arguments passed to the script.
     The arguments are used to determine which objects in GCP will be cleaned up.
-    
+
     Returns:
         A dictionary of arguments
     """
@@ -141,9 +141,9 @@ def get_args():
 
 def get_envs() -> dict:
     """
-    The get_envs function returns a dictionary of environment variables that are 
+    The get_envs function returns a dictionary of environment variables that are
     required by the pipeline.
-    
+
     Returns:
         A dictionary of the environment variables that are needed to run this pipeline
     """

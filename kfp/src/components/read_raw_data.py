@@ -1,18 +1,18 @@
 from kfp.v2.dsl import Artifact, Dataset, Output, component
-
 from utils.dependencies import OPENPYXL, PANDAS, PYARROW, PYTHON310
 
 
-@component(base_image=PYTHON310, packages_to_install=[PANDAS, OPENPYXL, PYARROW])
+@component(base_image=PYTHON310,
+           packages_to_install=[PANDAS, OPENPYXL, PYARROW])
 def read_raw_data(raw_data_path: str, features_path: str,
                   interim_data_path: str, interim_data: Output[Dataset],
                   raw_features: Output[Artifact]) -> None:
     """
-    The read_raw_data function reads the raw data from the raw_data_path, 
-    and uploads it to the pipeline metadata store and an interim data storage. 
-    The function also creates a JSON file containing all of the features in 
+    The read_raw_data function reads the raw data from the raw_data_path,
+    and uploads it to the pipeline metadata store and an interim data storage.
+    The function also creates a JSON file containing all of the features in
     the dataset and uploads it to both locations.
-    
+
     Args:
         raw_data_path: str: Specify the path to the raw data files
         features_path: str: Specify the path where the raw features are stored

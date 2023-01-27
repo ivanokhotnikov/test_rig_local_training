@@ -1,11 +1,9 @@
-from datetime import datetime
-
 import keras
 import pandas as pd
-from prefect import task
 from prefect.tasks import task_input_hash
-
 from utils import create_sequences
+
+from prefect import task
 
 
 @task(cache_key_fn=task_input_hash, refresh_cache=False)
