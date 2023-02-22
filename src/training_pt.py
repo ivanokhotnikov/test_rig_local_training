@@ -2,7 +2,9 @@ import json
 import os
 
 import pandas as pd
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import Dataset
+
+from tools import StandardScaler
 
 
 class TestRigDataset(Dataset):
@@ -16,6 +18,7 @@ class TestRigDataset(Dataset):
                  val_split: float = .2,
                  test_split: float = .2) -> None:
         assert flag in ['train', 'test', 'val']
+        assert features in ['M', 'MS', 'S']
         type_map = {'train': 0, 'val': 1, 'test': 2}
         self.set_type = type_map[flag]
         self.interim_data_path = './data/interim'
@@ -50,21 +53,29 @@ class TestRigDataset(Dataset):
                   'r') as fp:
             self.forecast_features = json.load(fp)
 
-        if self.features == 'S' or self.features == 'MS':
-            if self.target:
-                self.dataset = interim_df.loc[border1:border2, [self.target]]
-            else:
-                raise AttributeError('Specify target')
-        else:
+        if self.features == 'M':
             self.target = self.forecast_features
-        if 'M' in self.features:
             self.dataset = interim_df.loc[border1:border2,
                                           self.forecast_features]
+            self.y = self.dataset.values
         else:
-            self.dataset = interim_df.loc[border1:border2, self.target]
+            assert self.target
+            if self.features == 'MS':
+                self.dataset = interim_df.loc[border1:border2,
+                                              self.forecast_features]
+                self.y = interim_df.loc[border1:border2, self.target].values
+            elif self.features == 'S':
+                self.dataset = interim_df.loc[border1:border2, self.target]
+                self.y = self.dataset.values
+        self.x = self.dataset.values
+
+        if self.scale:
+            self.scaler = StandardScaler()
+            train_data = self.x[border1s[0]:border2s[0]]
+            self.scaler.fit(train_data)
+            self.x = self.scaler.transform(self.x)
 
     def __getitem__(self, index: int):
-        seq_x = self.dataset[index:index + self.lookback].values
-        seq_y = self.dataset[index + self.lookback:index + self.lookback +
-                             1].values
+        seq_x = self.x[index:index + self.lookback]
+        seq_y = self.y[index + self.lookback + 1]
         return seq_x, seq_y
