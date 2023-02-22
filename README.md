@@ -8,7 +8,7 @@ The repository contains the source code for implementations of the local trainin
 python -m venv .venv
 source .venv/Scripts/activate
 python -m pip install --upgrade pip setuptools
-pip install -r conf/requirements.txt
+pip install -r conf/requirements-dev.txt
 ```
 
 ## DVC orchestrated training

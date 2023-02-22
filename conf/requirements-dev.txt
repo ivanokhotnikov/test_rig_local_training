@@ -1,0 +1,15 @@
+pandas
+tensorflow
+scikit-learn
+pytest
+pyarrow
+openpyxl
+mlflow
+python-dotenv
+optuna
+optuna-dashboard
+pre-commit
+dvc
+prefect
+kfp
+torch

@@ -14,7 +14,7 @@ from prefect import flow
 def training_workflow(train_split: float, folds: int, lookback: int,
                       val_split: float, epochs: int, batch_size: int,
                       patience: int, lstm_units: int, learning_rate: float,
-                      verbose: int, univariate: bool):
+                      verbose: int, univariate: bool, dry_run: bool) -> None:
     timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
     all_raw_df = read_raw_data(
         raw_data_path=os.environ['RAW_DATA_PATH'],
@@ -74,6 +74,7 @@ def training_workflow(train_split: float, folds: int, lookback: int,
                 json.dump(test_metrics, fp)
             for k, v in test_metrics.items():
                 log_metric(k, v)
+            if dry_run: break
 
 
 def get_arguments():
@@ -89,6 +90,7 @@ def get_arguments():
     parser.add_argument('--folds', type=int, default=3)
     parser.add_argument('--verbose', type=int, default=2)
     parser.add_argument('--univariate', action='store_true')
+    parser.add_argument('--dry_run', action='store_true')
     return parser.parse_args()
 
 

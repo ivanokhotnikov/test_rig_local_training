@@ -8,8 +8,11 @@ from components import (build_features, compare_models, evaluate,
                         import_champion_metrics, import_forecast_features,
                         read_raw_data, split_data, train,
                         upload_model_to_registry)
+from dotenv import load_dotenv
 from kfp.v2 import compiler
 from kfp.v2.dsl import Artifact, Condition, ParallelFor, importer, pipeline
+
+from kfp import Client
 
 
 @pipeline(name='training-pipeline')
@@ -132,38 +135,18 @@ def get_args() -> argparse.Namespace:
     parser.add_argument('--epochs', type=int, default=500)
     parser.add_argument('--batch_size', type=int, default=256)
     parser.add_argument('--patience', type=int, default=50)
-    # # Hyper parameters
+    # Hyper parameters
     parser.add_argument('--lstm_units', type=int, default=15)
     parser.add_argument('--learning_rate', type=float, default=0.01)
     return parser.parse_args()
 
 
-def get_envs() -> dict:
-    """
-    The get_envs function returns a dictionary of environment variables that are
-    required by the pipeline.
-
-    Returns:
-        A dictionary of the environment variables that are needed to run this pipeline
-    """
-    return {
-        'project_id': os.environ['PROJECT_ID'],
-        'region': os.environ['REGION'],
-        'pipelines_path': os.environ['PIPELINES_PATH'],
-        'raw_data_path': os.environ['RAW_DATA_PATH'],
-        'interim_data_path': os.environ['INTERIM_DATA_PATH'],
-        'processed_data_path': os.environ['PROCESSED_DATA_PATH'],
-        'models_path': os.environ['MODELS_PATH'],
-        'features_path': os.environ['FEATURES_PATH'],
-        'deploy_image': os.environ['DEPLOY_IMAGE']
-    }
-
-
 if __name__ == '__main__':
     args = get_args()
-    envs = get_envs()
-    pipelines_uri = os.environ['PIPELINES_URI']
+    load_dotenv()
     logging.basicConfig(stream=sys.stdout)
+    os.makedirs('./compiled', exist_ok=True)
+    client = Client()
     compiler.Compiler().compile(
         pipeline_func=training_pipeline,
         package_path=f'./compiled/training_{args.timestamp}.json')
@@ -179,3 +162,8 @@ if __name__ == '__main__':
             'lstm_units': args.lstm_units,
             'learning_rate': args.learning_rate
         }
+        run = client.create_run_from_pipeline_func(training_pipeline,
+                                                   arguments={
+                                                       **training_parameters,
+                                                       **hyperparameters
+                                                   })

@@ -51,6 +51,16 @@ def read_raw_data(raw_data_path: str, interim_data_path: str) -> pd.DataFrame:
                            inplace=True,
                            ignore_index=True)
     os.makedirs(interim_data_path, exist_ok=True)
-    all_raw_df.to_csv(os.path.join(interim_data_path, 'all_raw_data.csv'),
+    all_raw_df.to_csv(os.path.join(interim_data_path, 'all_raw.csv'),
                       index=False)
     return all_raw_df
+
+
+if __name__ == '__main__':
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--raw', type=str)
+    parser.add_argument('--interim', type=str)
+    args = parser.parse_args()
+    df = read_raw_data.fn(raw_data_path=args.raw,
+                          interim_data_path=args.interim)
