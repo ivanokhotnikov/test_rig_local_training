@@ -7,23 +7,25 @@ from torch.utils.data import Dataset
 from tools import StandardScaler
 
 
-class TestRigDataset(Dataset):
+class TestRigData(Dataset):
 
     def __init__(self,
-                 lookback: int,
-                 scale: bool = True,
-                 flag: str = 'train',
-                 target: str | None = None,
-                 features: str = 'S',
-                 val_split: float = .2,
-                 test_split: float = .2) -> None:
+                 seq_len: int,
+                 pred_len: int,
+                 scale: bool,
+                 flag: str,
+                 features: str,
+                 val_split: float,
+                 test_split: float,
+                 target: str | None = None) -> None:
         assert flag in ['train', 'test', 'val']
         assert features in ['M', 'MS', 'S']
         type_map = {'train': 0, 'val': 1, 'test': 2}
         self.set_type = type_map[flag]
         self.interim_data_path = './data/interim'
         self.features_path = './conf'
-        self.lookback = lookback
+        self.seq_len = seq_len
+        self.pred_len = pred_len
         self.val_split = val_split
         self.test_split = test_split
         self.target = target
@@ -32,7 +34,7 @@ class TestRigDataset(Dataset):
         self.__read_data__()
 
     def __len__(self) -> int:
-        return len(self.dataset)
+        return len(self.x) - self.seq_len - self.pred_len + 1
 
     def __read_data__(self) -> pd.DataFrame:
         interim_df = pd.read_parquet(
@@ -52,14 +54,13 @@ class TestRigDataset(Dataset):
         with open(os.path.join(self.features_path, 'forecast_features.json'),
                   'r') as fp:
             self.forecast_features = json.load(fp)
-
         if self.features == 'M':
             self.target = self.forecast_features
             self.dataset = interim_df.loc[border1:border2,
                                           self.forecast_features]
             self.y = self.dataset.values
         else:
-            assert self.target
+            assert self.target in self.forecast_features
             if self.features == 'MS':
                 self.dataset = interim_df.loc[border1:border2,
                                               self.forecast_features]
@@ -76,6 +77,10 @@ class TestRigDataset(Dataset):
             self.x = self.scaler.transform(self.x)
 
     def __getitem__(self, index: int):
-        seq_x = self.x[index:index + self.lookback]
-        seq_y = self.y[index + self.lookback + 1]
+        x_begin = index
+        x_end = x_begin + self.seq_len
+        y_begin = x_end
+        y_end = y_begin + self.pred_len
+        seq_x = self.x[x_begin:x_end]
+        seq_y = self.y[y_begin:y_end]
         return seq_x, seq_y
