@@ -5,25 +5,13 @@ from exp import Experiment
 parser = argparse.ArgumentParser()
 # GPU
 parser.add_argument('--use-gpu', action='store_true', default=None)
-parser.add_argument('--gpu', type=int, default=None)
+parser.add_argument('--gpu', type=int, default=0)
 parser.add_argument('--use-multi-gpu', action='store_true', default=None)
 # Task
-parser.add_argument('--seq-len',
-                    type=int,
-                    default=120,
-                    help='input sequence length')
-parser.add_argument('--pred-len',
-                    type=int,
-                    default=1,
-                    help='prediction sequence length')
-parser.add_argument('--features',
-                    choices=['M', 'S', 'MS'],
-                    default='S',
-                    help='forecasting task, options: [M, S, MS]')
-parser.add_argument('--target',
-                    type=str,
-                    default=None,
-                    help='forecasting target for features [S, MS]')
+parser.add_argument('--seq-len', type=int, default=120)
+parser.add_argument('--pred-len', type=int, default=1)
+parser.add_argument('--features', choices=['M', 'S', 'MS'], default='S')
+parser.add_argument('--target', type=str, default=None)
 # Architecture
 parser.add_argument(
     '--hidden-size',
@@ -35,14 +23,15 @@ parser.add_argument('--num-layers',
                     default=2,
                     help='Number of recurrent layers in LSTM')
 # Training
+parser.add_argument('--train-only', action='store_true', default=False)
 parser.add_argument('--dry-run', action='store_true', default=False)
-parser.add_argument('--itr', type=int, default=2)
+parser.add_argument('--exps', type=int, default=1)
 parser.add_argument('--val-split', type=float, default=.2)
 parser.add_argument('--test-split', type=float, default=.2)
 parser.add_argument('--epochs', type=int, default=10)
 parser.add_argument('--batch-size', type=int, default=64)
-parser.add_argument('--patience', type=int, default=50)
-parser.add_argument('--log-interval', type=int, default=100)
+parser.add_argument('--patience', type=int, default=3)
+parser.add_argument('--log-interval', type=int, default=200)
 parser.add_argument('--learning-rate', type=float, default=0.01)
 # Ignore Ipykernel
 parser.add_argument('--ip', default=argparse.SUPPRESS)
@@ -60,7 +49,8 @@ if __name__ == '__main__':
     args = parser.parse_args()
     for k, v in vars(args).items():
         if all((k, v)): print('{}: {}'.format(k, v))
-    for ii in range(args.itr):
+    for ii in range(args.exps):
+        print(f'experiment {ii+1}')
         exp = Experiment(args)
         exp.train()
         if args.dry_run: break

@@ -7,6 +7,7 @@ from torch.utils.data import DataLoader
 
 from data import TestRigData
 from models import LSTM
+from tools import EarlyStopping
 
 
 class Experiment:
@@ -16,7 +17,7 @@ class Experiment:
         self.device = self._acquire_device()
 
     def _acquire_device(self):
-        if self.args.use_gpu:
+        if self.args.use_gpu and torch.cuda.is_available():
             os.environ['CUDA_VISIBLE_DEVICES'] = str(
                 self.args.gpu
             ) if not self.args.use_multi_gpu else self.args.devices
@@ -68,10 +69,17 @@ class Experiment:
         self.model = self._build_model().to(self.device)
         model_optim = self._select_optimizer()
         criterion = self._select_criterion()
-        self.timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
+        train_steps = len(self.train_loader)
+        timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
+        path = os.path.join('./logs', timestamp)
+        os.makedirs(path, exist_ok=True)
+        early_stopping = EarlyStopping(patience=self.args.patience,
+                                       verbose=True)
         for epoch in range(self.args.epochs):
-            train_loss = []
+            print(f'epoch {epoch + 1}')
+            train_loss = 0
             self.model.train()
+            epoch_time = datetime.now()
             for i, (batch_x, batch_y) in enumerate(self.train_loader):
                 batch_x.double().to(self.device)
                 batch_y.double().to(self.device)
@@ -80,13 +88,26 @@ class Experiment:
                 pred = pred[:,
                             -self.args.pred_len:, :].double().to(self.device)
                 rmse_loss = torch.sqrt(criterion(pred, batch_y))
-                train_loss.append(rmse_loss.item())
+                train_loss += rmse_loss.item()
                 if i % self.args.log_interval == 0:
-                    print('\titer: {0}, epoch: {1} | loss: {2:.3f}'.format(
-                        i, epoch, rmse_loss.item()))
+                    print('\titer: {0} | loss: {1:.3f}'.format(
+                        i, rmse_loss.item()))
                 rmse_loss.backward()
                 model_optim.step()
                 if self.args.dry_run: break
+            train_loss /= train_steps
+            if not self.args.train_only:
+                pass
+                # early_stopping(val_loss, self.model, path)
+            else:
+                print('epoch {0} time: {1} s | train loss: {2:.3f}'.format(
+                    epoch + 1,
+                    datetime.now() - epoch_time, train_loss))
+                early_stopping(train_loss, self.model, path)
+
+            if early_stopping.early_stop:
+                print('early stopping!')
+                break
             if self.args.dry_run: break
 
     def validate(self):
