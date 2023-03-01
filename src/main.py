@@ -31,7 +31,7 @@ parser.add_argument('--test-split', type=float, default=.2)
 parser.add_argument('--epochs', type=int, default=10)
 parser.add_argument('--batch-size', type=int, default=64)
 parser.add_argument('--patience', type=int, default=3)
-parser.add_argument('--log-interval', type=int, default=200)
+parser.add_argument('--log-interval', type=int, default=500)
 parser.add_argument('--learning-rate', type=float, default=0.01)
 # Ignore Ipykernel
 parser.add_argument('--ip', default=argparse.SUPPRESS)
@@ -47,10 +47,11 @@ parser.add_argument('--f', default=argparse.SUPPRESS)
 
 if __name__ == '__main__':
     args = parser.parse_args()
+    print('arguments:')
     for k, v in vars(args).items():
-        if all((k, v)): print('{}: {}'.format(k, v))
+        if all((k, v)): print('\t{}: {}'.format(k, v))
     for ii in range(args.exps):
-        print(f'experiment {ii+1}')
+        print('\nexperiment {}'.format(ii + 1))
         exp = Experiment(args)
         exp.train()
         if args.dry_run: break

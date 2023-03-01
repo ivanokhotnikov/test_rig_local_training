@@ -4,6 +4,7 @@ from datetime import datetime
 import torch
 from torch import nn, optim
 from torch.utils.data import DataLoader
+from torch.utils.tensorboard import SummaryWriter
 
 from data import TestRigData
 from models import LSTM
@@ -60,58 +61,83 @@ class Experiment:
                      batch_size=self.args.batch_size).double()
 
     def train(self):
-        self.train_data, self.train_loader = self._get_data(flag='train')
-        if self.args.features == 'S':
-            self.train_data.x = self.train_data.x.reshape(-1, 1)
-            self.train_data.y = self.train_data.y.reshape(-1, 1)
-        elif self.args.features == 'MS':
-            self.train_data.y = self.train_data.y.reshape(-1, 1)
+        self.train_data, train_loader = self._get_data(flag='train')
+        self.val_data, val_loader = self._get_data(flag='val')
+        self.test_data, test_loader = self._get_data(flag='test')
         self.model = self._build_model().to(self.device)
         model_optim = self._select_optimizer()
         criterion = self._select_criterion()
-        train_steps = len(self.train_loader)
-        timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
-        path = os.path.join('./logs', timestamp)
-        os.makedirs(path, exist_ok=True)
+        train_steps = len(train_loader)
         early_stopping = EarlyStopping(patience=self.args.patience,
                                        verbose=True)
+        timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
+        path = os.path.join('./runs', timestamp)
+
         for epoch in range(self.args.epochs):
-            print(f'epoch {epoch + 1}')
-            train_loss = 0
+            print('epoch {}'.format(epoch + 1))
+            train_losses = []
             self.model.train()
             epoch_time = datetime.now()
-            for i, (batch_x, batch_y) in enumerate(self.train_loader):
+            self.writer = SummaryWriter(
+                log_dir=os.path.join(path, f'{epoch+1}'))
+            for i, (batch_x, batch_y) in enumerate(train_loader):
                 batch_x.double().to(self.device)
                 batch_y.double().to(self.device)
                 model_optim.zero_grad()
-                pred = self.model(batch_x.double())
+                pred = self.model(batch_x)
                 pred = pred[:,
                             -self.args.pred_len:, :].double().to(self.device)
                 rmse_loss = torch.sqrt(criterion(pred, batch_y))
-                train_loss += rmse_loss.item()
+                self.writer.add_scalar('loss train/iter', rmse_loss, i)
+                train_losses.append(rmse_loss.item())
                 if i % self.args.log_interval == 0:
                     print('\titer: {0} | loss: {1:.3f}'.format(
                         i, rmse_loss.item()))
                 rmse_loss.backward()
                 model_optim.step()
                 if self.args.dry_run: break
-            train_loss /= train_steps
+            self.writer.flush()
+            train_loss = train_losses[-1]
             if not self.args.train_only:
-                pass
-                # early_stopping(val_loss, self.model, path)
-            else:
-                print('epoch {0} time: {1} s | train loss: {2:.3f}'.format(
+                val_loss = self.validate(val_loader, criterion)
+                test_loss = self.validate(test_loader, criterion)
+                print('\tepoch {0} time: {1} s'.format(
                     epoch + 1,
-                    datetime.now() - epoch_time, train_loss))
+                    datetime.now() - epoch_time))
+                print(
+                    '\t\ttrain loss: {0:.3f} val loss: {1:.3f} test loss: {2:.3f}'
+                    .format(train_loss, val_loss, test_loss))
+                early_stopping(val_loss, self.model, path)
+            else:
+                print('\tepoch {0} time: {1} s'.format(
+                    epoch + 1,
+                    datetime.now() - epoch_time))
+                print('\t\ttrain loss: {0:.3f}'.format(train_loss))
                 early_stopping(train_loss, self.model, path)
 
-            if early_stopping.early_stop:
+            if early_stopping.early_stop or self.args.dry_run:
                 print('early stopping!')
                 break
-            if self.args.dry_run: break
+            self.writer.close()
 
-    def validate(self):
-        pass
+    def validate(self, loader, criterion):
+        val_loss = 0
+        self.model.eval()
+        val_steps = len(loader)
+        with torch.no_grad():
+            for i, (batch_x, batch_y) in enumerate(loader):
+                batch_x.double().to(self.device)
+                batch_y.double().to(self.device)
+                pred = self.model(batch_x)
+                pred = pred[:,
+                            -self.args.pred_len:, :].double().to(self.device)
+                rmse_loss = torch.sqrt(criterion(pred, batch_y))
+                label = 'val' if loader.dataset.flag == 'val' else 'test'
+                self.writer.add_scalar(f'loss {label}/iter', rmse_loss, i)
+                val_loss += rmse_loss.item()
+        val_loss /= val_steps
+        self.model.train()
+        return val_loss
 
     def test(self):
         pass

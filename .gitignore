@@ -10,5 +10,6 @@ compiled/
 data/
 logs/
 mlruns/
+runs/
 .pytest_cache/
 tensorboards

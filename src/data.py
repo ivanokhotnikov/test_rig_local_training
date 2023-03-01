@@ -20,8 +20,9 @@ class TestRigData(Dataset):
                  target: str | None = None) -> None:
         assert flag in ['train', 'test', 'val']
         assert features in ['M', 'MS', 'S']
+        self.flag = flag
         type_map = {'train': 0, 'val': 1, 'test': 2}
-        self.set_type = type_map[flag]
+        self.set_type = type_map[self.flag]
         self.interim_data_path = './data/interim'
         self.features_path = './conf'
         self.seq_len = seq_len
@@ -64,11 +65,15 @@ class TestRigData(Dataset):
             if self.features == 'MS':
                 self.dataset = interim_df.loc[border1:border2,
                                               self.forecast_features]
-                self.y = interim_df.loc[border1:border2, self.target].values
+                self.y = interim_df.loc[border1:border2,
+                                        self.target].values.reshape(-1, 1)
             elif self.features == 'S':
                 self.dataset = interim_df.loc[border1:border2, self.target]
-                self.y = self.dataset.values
-        self.x = self.dataset.values
+                self.y = self.dataset.values.reshape(-1, 1)
+        if self.features == 'S':
+            self.x = self.dataset.values.reshape(-1, 1)
+        else:
+            self.x = self.dataset.values
 
         if self.scale:
             self.scaler = StandardScaler()
