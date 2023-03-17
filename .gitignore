@@ -13,3 +13,4 @@ mlruns/
 runs/
 .pytest_cache/
 tensorboards
+trials*

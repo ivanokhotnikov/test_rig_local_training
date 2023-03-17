@@ -69,14 +69,15 @@ class EarlyStopping:
                 'saving model',
                 sep='\n')
         os.makedirs(path, exist_ok=True)
-        torch.save(model.state_dict(), os.path.join(path, 'checkpoint.pth'))
+        torch.save(model, os.path.join(path, 'checkpoint.pth'))
         self.val_loss_min = val_loss
 
 
-def visual(true, name, preds=None):
+def visual(true, preds, name):
     plt.figure()
     plt.plot(true, label='ground truth', linewidth=2)
     if preds is not None:
         plt.plot(preds, label='prediction', linewidth=2)
     plt.legend()
     plt.savefig(name, bbox_inches='tight')
+    plt.close()
