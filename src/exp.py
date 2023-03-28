@@ -61,14 +61,13 @@ class Experiment:
         train_steps = len(train_loader)
         early_stopping = EarlyStopping(patience=self.args.patience,
                                        verbose=True)
-        self.path = os.path.join('./runs', setting)
+        self.path = os.path.join(os.environ['RUNS_PATH'], setting)
         os.makedirs(self.path, exist_ok=True)
         print('arguments:')
-        with open(os.path.join(self.path, 'params.txt'), 'a') as fp:
+        with open(os.path.join(self.path, 'params.txt'), 'w') as fp:
             for k, v in vars(self.args).items():
-                if all((k, v)):
-                    print('\t{}: {}'.format(k, v))
-                    fp.write('{}: {}\n'.format(k, v))
+                print('\t{}: {}'.format(k, v))
+                fp.write('{}: {}\n'.format(k, v))
         for epoch in range(self.args.epochs):
             print('epoch: {}'.format(epoch + 1))
             train_losses = []

@@ -23,8 +23,8 @@ class TestRigData(Dataset):
         self.flag = flag
         type_map = {'train': 0, 'val': 1, 'test': 2}
         self.set_type = type_map[self.flag]
-        self.interim_data_path = './data/interim'
-        self.features_path = './conf'
+        self.interim_data_path = os.environ['INTERIM_DATA_PATH']
+        self.features_path = os.environ['FEATURES_PATH']
         self.seq_len = seq_len
         self.pred_len = pred_len
         self.val_split = val_split
