@@ -20,8 +20,8 @@ class TestRigData(Dataset):
                  target: str | None = None) -> None:
         assert flag in ['train', 'test', 'val']
         assert features in ['M', 'MS', 'S']
-        self.flag = flag
         type_map = {'train': 0, 'val': 1, 'test': 2}
+        self.flag = flag
         self.set_type = type_map[self.flag]
         self.interim_data_path = os.environ['INTERIM_DATA_PATH']
         self.features_path = os.environ['FEATURES_PATH']
@@ -38,17 +38,17 @@ class TestRigData(Dataset):
         return len(self.x) - self.seq_len - self.pred_len + 1
 
     def __read_data__(self) -> pd.DataFrame:
-        interim_df = pd.read_parquet(
+        df = pd.read_parquet(
             os.path.join(self.interim_data_path, 'interim.parquet'))
-        size = len(interim_df)
         border1s = [
             0,
-            int(size * (1 - self.val_split - self.test_split)),
-            int(size * (1 - self.test_split))
+            int(len(df) * (1 - self.val_split - self.test_split)),
+            int(len(df) * (1 - self.test_split)),
         ]
         border2s = [
-            int(size * (1 - self.val_split - self.test_split)),
-            int(size * (1 - self.test_split)), size
+            int(len(df) * (1 - self.val_split - self.test_split)),
+            int(len(df) * (1 - self.test_split)),
+            len(df),
         ]
         border1 = border1s[self.set_type]
         border2 = border2s[self.set_type]
@@ -57,18 +57,16 @@ class TestRigData(Dataset):
             self.forecast_features = json.load(fp)
         if self.features == 'M':
             self.target = self.forecast_features
-            self.dataset = interim_df.loc[border1:border2,
-                                          self.forecast_features]
+            self.dataset = df.loc[border1:border2, self.forecast_features]
             self.y = self.dataset.values
         else:
             assert self.target in self.forecast_features
             if self.features == 'MS':
-                self.dataset = interim_df.loc[border1:border2,
-                                              self.forecast_features]
-                self.y = interim_df.loc[border1:border2,
-                                        self.target].values.reshape(-1, 1)
+                self.dataset = df.loc[border1:border2, self.forecast_features]
+                self.y = df.loc[border1:border2,
+                                self.target].values.reshape(-1, 1)
             elif self.features == 'S':
-                self.dataset = interim_df.loc[border1:border2, self.target]
+                self.dataset = df.loc[border1:border2, self.target]
                 self.y = self.dataset.values.reshape(-1, 1)
         if self.features == 'S':
             self.x = self.dataset.values.reshape(-1, 1)
@@ -89,3 +87,6 @@ class TestRigData(Dataset):
         seq_x = self.x[x_begin:x_end]
         seq_y = self.y[y_begin:y_end]
         return seq_x, seq_y
+
+    def inverse_transform(self, data):
+        return self.scaler.inverse_transform(data)

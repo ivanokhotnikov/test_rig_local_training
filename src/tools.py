@@ -73,11 +73,18 @@ class EarlyStopping:
         self.val_loss_min = val_loss
 
 
-def visual(true, preds, name):
+def plot_prediction(history,
+                    true,
+                    preds,
+                    pred_range,
+                    name: str,
+                    save: bool = True,
+                    show: bool = True):
     plt.figure()
-    plt.plot(true, label='ground truth', linewidth=2)
-    if preds is not None:
-        plt.plot(preds, label='prediction', linewidth=2)
+    plt.plot(history, label='history')
+    plt.plot(pred_range, true, label='ground truth')
+    plt.plot(pred_range, preds, label='prediction')
     plt.legend()
-    plt.savefig(name, bbox_inches='tight')
+    if save: plt.savefig(name, bbox_inches='tight')
+    if show: plt.show()
     plt.close()

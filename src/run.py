@@ -9,10 +9,10 @@ from torch.utils.tensorboard import SummaryWriter
 
 from data import TestRigData
 from models import LSTM
-from tools import EarlyStopping, visual
+from tools import EarlyStopping, plot_prediction
 
 
-class Experiment:
+class Run:
 
     def __init__(self, args):
         self.args = args
@@ -23,6 +23,9 @@ class Experiment:
 
     def _select_optimizer(self):
         return optim.Adam(self.model.parameters(), lr=self.args.learning_rate)
+
+    def _select_scheduler(self, optimizer):
+        return optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.9)
 
     def _get_data(self, flag):
         if flag in ['test', 'pred']:
@@ -51,59 +54,81 @@ class Experiment:
                      num_layers=self.args.num_layers,
                      batch_size=self.args.batch_size)
 
-    def train(self, setting):
-        self.train_data, train_loader = self._get_data(flag='train')
-        self.val_data, val_loader = self._get_data(flag='val')
-        self.test_data, test_loader = self._get_data(flag='test')
+    def train(self):
+        self.train_data, self.train_loader = self._get_data(flag='train')
+        self.val_data, self.val_loader = self._get_data(flag='val')
+        self.test_data, self.test_loader = self._get_data(flag='test')
         self.model = self._build_model()
-        model_optim = self._select_optimizer()
-        criterion = self._select_criterion()
-        train_steps = len(train_loader)
+        self.criterion = self._select_criterion()
+        self.optimizer = self._select_optimizer()
+        self.scheduler = self._select_scheduler(self.optimizer)
+        day_stamp = datetime.now().strftime('%Y%m%d')
+        time_stamp = datetime.now().strftime('%H%M%S')
+        self.path = os.path.join(os.environ['RUNS_PATH'], day_stamp,
+                                 time_stamp)
+        os.makedirs(self.path, exist_ok=True)
+        train_steps = len(self.train_loader)
         early_stopping = EarlyStopping(patience=self.args.patience,
                                        verbose=True)
-        self.path = os.path.join(os.environ['RUNS_PATH'], setting)
-        os.makedirs(self.path, exist_ok=True)
-        print('arguments:')
         with open(os.path.join(self.path, 'params.txt'), 'w') as fp:
+            print('arguments:')
             for k, v in vars(self.args).items():
-                print('\t{}: {}'.format(k, v))
-                fp.write('{}: {}\n'.format(k, v))
+                print(f'\t{k}: {v}')
+                fp.write(f'{k}: {v}\n')
+            print('model:')
+            fp.write(str(self.model))
         for epoch in range(self.args.epochs):
-            print('epoch: {}'.format(epoch + 1))
+            print(f'epoch: {epoch + 1}')
+            os.makedirs(os.path.join(self.path, 'epochs'), exist_ok=True)
             train_losses = []
-            self.model.train()
             epoch_time = datetime.now()
+            self.model.train()
             self.writer = SummaryWriter(
-                log_dir=os.path.join(self.path, f'{epoch+1}'))
-            for i, (batch_x, batch_y) in enumerate(train_loader):
+                log_dir=os.path.join(self.path, 'epochs', f'{epoch+1}'))
+            for i, (batch_x, batch_y) in enumerate(self.train_loader):
                 batch_x = batch_x.float()
                 batch_y = batch_y.float()
-                model_optim.zero_grad()
+                self.optimizer.zero_grad()
                 pred = self.model(batch_x)
                 pred = pred[:, -self.args.pred_len:, :]
-                rmse_loss = torch.sqrt(criterion(pred, batch_y))
+                rmse_loss = torch.sqrt(self.criterion(pred, batch_y))
                 self.writer.add_scalar('loss train/iter', rmse_loss, i)
                 train_losses.append(rmse_loss.item())
                 if i % self.args.log_interval == 0:
                     print('\titer: {0:>5d}/{1:>5d} | loss: {2:.3f}'.format(
                         i, train_steps, rmse_loss.item()))
+                    pred_range = torch.arange(
+                        self.args.seq_len,
+                        self.args.seq_len + self.args.pred_len)
+                    history = self.train_data.scaler.inverse_transform(
+                        torch.squeeze(batch_x[0, -self.args.seq_len:, :]))
+                    trues = torch.squeeze(
+                        batch_y[0, -self.args.pred_len:, :]).detach()
+                    preds = torch.squeeze(pred[0, :, :]).detach()
+                    plot_prediction(history=history,
+                                    true=trues,
+                                    preds=preds,
+                                    pred_range=pred_range,
+                                    name=os.path.join(self.path,
+                                                      f'{i + 1}.png'),
+                                    save=False)
                 rmse_loss.backward()
-                model_optim.step()
+                self.optimizer.step()
                 if self.args.dry_run: break
             train_loss = np.mean(train_losses)
-            val_loss = self.evaluate(val_loader, criterion)
-            test_loss = self.evaluate(test_loader, criterion)
-            print('epoch {0} time: {1} s'.format(epoch + 1,
-                                                 datetime.now() - epoch_time))
+            val_loss = self.evaluate(self.val_loader, self.criterion)
+            test_loss = self.evaluate(self.test_loader, self.criterion)
+            print(f'epoch {epoch + 1} time: {datetime.now() - epoch_time} s')
             print(
-                'train loss: {0:.3f} | val loss: {1:.3f} | test loss: {2:.3f}'.
-                format(train_loss, val_loss, test_loss))
+                f'train loss: {train_loss:.3f} | val loss: {val_loss:.3f} | test loss: {test_loss:.3f}'
+            )
             early_stopping(val_loss, self.model, self.path)
             self.writer.flush()
             if early_stopping.early_stop or self.args.dry_run:
                 print('early stopping!')
                 break
             self.writer.close()
+            self.scheduler.step()
         best_model_path = os.path.join(self.path, 'checkpoint.pth')
         self.model = torch.load(best_model_path)
         return self.model
@@ -142,12 +167,13 @@ class Experiment:
                 preds.append(pred.detach().cpu().numpy())
                 trues.append(true.detach().cpu().numpy())
                 if i % self.args.log_interval == 0:
-                    input = batch_x.detach().cpu().numpy()
-                    gt = np.concatenate((input[0, :, -1], true[0, :, -1]),
+                    inputs = batch_x.detach().cpu().numpy()
+                    gt = np.concatenate((inputs[0, :, -1], true[0, :, -1]),
                                         axis=0)
-                    pd = np.concatenate((input[0, :, -1], pred[0, :, -1]),
-                                        axis=0)
-                    visual(gt, pd, os.path.join(test_folder, f'{i}.pdf'))
+                    pred = np.concatenate((inputs[0, :, -1], pred[0, :, -1]),
+                                          axis=0)
+                    plot_prediction(gt, pred,
+                                    os.path.join(test_folder, f'{i}.pdf'))
 
     def predict(self):
         pass
