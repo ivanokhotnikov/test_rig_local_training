@@ -1,5 +1,4 @@
 import os
-from datetime import datetime
 
 import matplotlib.pyplot as plt
 import torch
@@ -73,18 +72,13 @@ class EarlyStopping:
         self.val_loss_min = val_loss
 
 
-def plot_prediction(history,
-                    true,
-                    preds,
-                    pred_range,
-                    name: str,
-                    save: bool = True,
-                    show: bool = True):
-    plt.figure()
+def plot_prediction(history, true, preds, pred_range, path: str, name: str,
+                    to_tb: bool, save: bool, show: bool):
+    fig = plt.figure(num=name)
     plt.plot(history, label='history')
     plt.plot(pred_range, true, label='ground truth')
     plt.plot(pred_range, preds, label='prediction')
     plt.legend()
-    if save: plt.savefig(name, bbox_inches='tight')
+    if save: plt.savefig(os.path.join(path, name), bbox_inches='tight')
     if show: plt.show()
-    plt.close()
+    return fig if to_tb else None

@@ -25,7 +25,8 @@ class Run:
         return optim.Adam(self.model.parameters(), lr=self.args.learning_rate)
 
     def _select_scheduler(self, optimizer):
-        return optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.9)
+        return optim.lr_scheduler.ExponentialLR(optimizer,
+                                                gamma=self.args.gamma)
 
     def _get_data(self, flag):
         if flag in ['test', 'pred']:
@@ -52,6 +53,7 @@ class Run:
                      output_size=self.train_data.y.shape[-1],
                      hidden_size=self.args.hidden_size,
                      num_layers=self.args.num_layers,
+                     dropout=self.args.dropout,
                      batch_size=self.args.batch_size)
 
     def train(self):
@@ -92,7 +94,7 @@ class Run:
                 pred = self.model(batch_x)
                 pred = pred[:, -self.args.pred_len:, :]
                 rmse_loss = torch.sqrt(self.criterion(pred, batch_y))
-                self.writer.add_scalar('loss train/iter', rmse_loss, i)
+                self.writer.add_scalar('loss/train/iter', rmse_loss, i)
                 train_losses.append(rmse_loss.item())
                 if i % self.args.log_interval == 0:
                     print('\titer: {0:>5d}/{1:>5d} | loss: {2:.3f}'.format(
@@ -105,30 +107,41 @@ class Run:
                     trues = torch.squeeze(
                         batch_y[0, -self.args.pred_len:, :]).detach()
                     preds = torch.squeeze(pred[0, :, :]).detach()
-                    plot_prediction(history=history,
-                                    true=trues,
-                                    preds=preds,
-                                    pred_range=pred_range,
-                                    name=os.path.join(self.path,
-                                                      f'{i + 1}.png'),
-                                    save=False)
+                    fig_path = os.path.join(self.path, 'epochs', f'{epoch+1}')
+                    fig_name = f'{i}.png'
+                    fig = plot_prediction(history=history,
+                                          true=trues,
+                                          preds=preds,
+                                          pred_range=pred_range,
+                                          path=fig_path,
+                                          name=fig_name,
+                                          to_tb=True,
+                                          show=False,
+                                          save=True)
+                    if fig:
+                        self.writer.add_figure(f'{epoch+1}_{fig_name}', fig, i)
                 rmse_loss.backward()
                 self.optimizer.step()
                 if self.args.dry_run: break
             train_loss = np.mean(train_losses)
             val_loss = self.evaluate(self.val_loader, self.criterion)
             test_loss = self.evaluate(self.test_loader, self.criterion)
+            with open(
+                    os.path.join(self.path, 'epochs', f'{epoch+1}',
+                                 'metrics.txt'), 'w') as fp:
+                fp.write(
+                    f'train {train_loss}\nval {val_loss}\ntest {test_loss}')
             print(f'epoch {epoch + 1} time: {datetime.now() - epoch_time} s')
             print(
                 f'train loss: {train_loss:.3f} | val loss: {val_loss:.3f} | test loss: {test_loss:.3f}'
             )
             early_stopping(val_loss, self.model, self.path)
             self.writer.flush()
+            self.writer.close()
+            self.scheduler.step()
             if early_stopping.early_stop or self.args.dry_run:
                 print('early stopping!')
                 break
-            self.writer.close()
-            self.scheduler.step()
         best_model_path = os.path.join(self.path, 'checkpoint.pth')
         self.model = torch.load(best_model_path)
         return self.model
@@ -142,8 +155,8 @@ class Run:
                 batch_y = batch_y.float()
                 pred = self.model(batch_x)
                 pred = pred[:, -self.args.pred_len:, :]
-                rmse_loss = np.sqrt(criterion(pred, batch_y))
-                self.writer.add_scalar(f'loss {loader.dataset.flag}/iter',
+                rmse_loss = torch.sqrt(criterion(pred, batch_y))
+                self.writer.add_scalar(f'loss/{loader.dataset.flag}/iter',
                                        rmse_loss, i)
                 losses.append(rmse_loss.item())
         loss = np.mean(losses)

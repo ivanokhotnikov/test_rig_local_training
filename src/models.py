@@ -5,7 +5,7 @@ from torch import nn
 class LSTM(nn.Module):
 
     def __init__(self, input_size: int, hidden_size: int, num_layers: int,
-                 batch_size: int, output_size: int, **kwargs):
+                 dropout: float, batch_size: int, output_size: int, **kwargs):
         super(LSTM, self).__init__()
         # rnn = nn.LSTM(input_size=10, hidden_size=20, num_layers=2) # input_size - number of expected features in the input x, hidden_size -  number of features in the hidden state h
 
@@ -19,10 +19,12 @@ class LSTM(nn.Module):
         self.hidden_size = hidden_size  # number of features in the hidden state
         self.output_size = output_size
         self.num_layers = num_layers
+        self.dropout = dropout if num_layers >= 2 else 0
         self.batch_size = batch_size
         self.lstm = nn.LSTM(input_size=self.input_size,
                             hidden_size=self.hidden_size,
                             num_layers=self.num_layers,
+                            dropout=dropout,
                             batch_first=True,
                             dtype=torch.float)
         self.linear = nn.Linear(self.hidden_size,
