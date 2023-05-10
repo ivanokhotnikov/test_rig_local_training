@@ -19,15 +19,16 @@ class Run:
         self.args = args
         torch.manual_seed(args.seed)
 
-    def _select_criterion(self):
-        return nn.MSELoss()
+    def _initialize_criterion(self):
+        self.criterion = nn.MSELoss()
 
-    def _select_optimizer(self):
-        return optim.Adam(self.model.parameters(), lr=self.args.learning_rate)
+    def _initialize_optimizer(self):
+        self.optimizer = optim.Adam(self.model.parameters(),
+                                    lr=self.args.learning_rate)
 
-    def _select_scheduler(self, optimizer):
-        return optim.lr_scheduler.ExponentialLR(optimizer,
-                                                gamma=self.args.gamma)
+    def _initialize_scheduler(self, optimizer):
+        self.scheduler = optim.lr_scheduler.ExponentialLR(
+            optimizer, gamma=self.args.gamma)
 
     def _get_data(self, flag):
         if flag in ['test', 'pred']:
@@ -48,31 +49,80 @@ class Run:
                             drop_last=True)
         return data, loader
 
-    def _build_model(self):
+    def _initialize_model(self):
         model = LSTMModel
-        return model(input_size=self.train_data.x.shape[-1],
-                     output_size=self.train_data.y.shape[-1],
-                     hidden_size=self.args.hidden_size,
-                     num_layers=self.args.num_layers,
-                     dropout=self.args.dropout,
-                     batch_size=self.args.batch_size)
+        self.model = model(input_size=self.train_data.x.shape[-1],
+                           output_size=self.train_data.y.shape[-1],
+                           hidden_size=self.args.hidden_size,
+                           num_layers=self.args.num_layers,
+                           dropout=self.args.dropout,
+                           batch_size=self.args.batch_size)
 
-    def train(self):
-        self.train_data, self.train_loader = self._get_data(flag='train')
-        self.val_data, self.val_loader = self._get_data(flag='val')
-        self.test_data, self.test_loader = self._get_data(flag='test')
-        self.model = self._build_model()
-        self.criterion = self._select_criterion()
-        self.optimizer = self._select_optimizer()
-        self.scheduler = self._select_scheduler(self.optimizer)
+    def _log_epoch_start(self, epoch):
+        logging.info(f'epoch: {epoch + 1}')
+        self.epoch_path = os.path.join(self.path, 'epochs', f'{epoch+1}')
+        os.makedirs(self.epoch_path, exist_ok=True)
+        self.writer = SummaryWriter(log_dir=self.epoch_path)
+
+    def _log_epoch_end(self, epoch, epoch_start_time, train_loss, val_loss,
+                       test_loss):
+        self.writer.add_scalars(
+            'loss/epoch',
+            {
+                'train': train_loss,
+                'val': val_loss,
+                'test': test_loss
+            },
+            epoch + 1,
+        )
+        self.writer.add_scalar('lr/epoch',
+                               float(self.scheduler.get_last_lr()[0]),
+                               epoch + 1)
+        with open(os.path.join(self.epoch_path, 'metrics.txt'), 'w') as fp:
+            fp.write(f'train {train_loss}\nval {val_loss}\ntest {test_loss}')
+        logging.info(
+            f'epoch {epoch + 1} time: {datetime.now() - epoch_start_time} s')
+        logging.info(
+            f'train loss: {train_loss:.3f} | val loss: {val_loss:.3f} | test loss: {test_loss:.3f}'
+        )
+
+    def _log_iteration(self, train_steps, epoch, i, batch_x, batch_y, pred,
+                       rmse_loss):
+        logging.info('\titer: {0:>5d}/{1:>5d} | loss: {2:.3f}'.format(
+            i, train_steps, rmse_loss.item()))
+        pred_range = torch.arange(self.args.seq_len,
+                                  self.args.seq_len + self.args.pred_len)
+        history = self.train_data.scaler.inverse_transform(
+            torch.squeeze(batch_x[0, -self.args.seq_len:, :]))
+        trues = torch.squeeze(batch_y[0, -self.args.pred_len:, :]).detach()
+        preds = torch.squeeze(pred[0, :, :]).detach()
+        fig_path = os.path.join(self.path, 'epochs', f'{epoch+1}')
+        fig_name = f'{i}.png'
+        fig = plot_prediction(history=history,
+                              true=trues,
+                              preds=preds,
+                              pred_range=pred_range,
+                              path=fig_path,
+                              name=fig_name,
+                              to_tb=True,
+                              show=False,
+                              save=False)
+        if fig:
+            self.writer.add_figure(f'{epoch+1}_{fig_name}', fig, i)
+
+    def _log_args_model(self):
+        logging.info('arguments:')
+        for k, v in vars(self.args).items():
+            logging.info(f'\t{k:<15}{v:<15}')
+        logging.info('model:')
+        logging.info(self.model)
+
+    def _initilize_logging(self):
         day_stamp = datetime.now().strftime('%Y%m%d')
         time_stamp = datetime.now().strftime('%H%M%S')
         self.path = os.path.join(os.environ['RUNS_PATH'], day_stamp,
                                  time_stamp)
         os.makedirs(self.path, exist_ok=True)
-        train_steps = len(self.train_loader)
-        early_stopping = EarlyStopping(patience=self.args.patience,
-                                       verbose=True)
         logging.basicConfig(format='%(asctime)s | %(levelname)s | %(message)s',
                             datefmt='%H:%M:%S',
                             handlers=[
@@ -80,23 +130,35 @@ class Run:
                                     os.path.join(self.path, 'log.txt')),
                                 logging.StreamHandler()
                             ],
-                            level=logging.DEBUG)
-        logging.info('arguments:')
-        for k, v in vars(self.args).items():
-            logging.info(f'\t{k:<15}{v:<15}')
-        logging.info('model:')
-        logging.info(self.model)
+                            level=logging.INFO)
+
+    def _initialize_data(self):
+        self.train_data, self.train_loader = self._get_data(flag='train')
+        self.val_data, self.val_loader = self._get_data(flag='val')
+        self.test_data, self.test_loader = self._get_data(flag='test')
+
+    def _finalize_writer(self):
+        self.writer.flush()
+        self.writer.close()
+
+    def train(self):
+        self._initialize_data()
+        self._initialize_model()
+        self._initialize_criterion()
+        self._initialize_optimizer()
+        self._initialize_scheduler(self.optimizer)
+        self._initilize_logging()
+        self._log_args_model()
+        train_steps = len(self.train_loader)
+        early_stopping = EarlyStopping(patience=self.args.patience,
+                                       verbose=True)
         for epoch in range(self.args.epochs):
-            logging.info(f'epoch: {epoch + 1}')
-            os.makedirs(os.path.join(self.path, 'epochs'), exist_ok=True)
+            self._log_epoch_start(epoch)
             train_losses = []
-            epoch_time = datetime.now()
+            epoch_start_time = datetime.now()
             self.model.train()
-            self.writer = SummaryWriter(
-                log_dir=os.path.join(self.path, 'epochs', f'{epoch+1}'))
             for i, (batch_x, batch_y) in enumerate(self.train_loader):
-                batch_x = batch_x.float()
-                batch_y = batch_y.float()
+                batch_x, batch_y = batch_x.float(), batch_y.float()
                 self.optimizer.zero_grad()
                 pred = self.model(batch_x)
                 pred = pred[:, -self.args.pred_len:, :]
@@ -104,59 +166,22 @@ class Run:
                 self.writer.add_scalar('loss/train/iter', rmse_loss, i)
                 train_losses.append(rmse_loss.item())
                 if i % self.args.log_interval == 0:
-                    logging.info(
-                        '\titer: {0:>5d}/{1:>5d} | loss: {2:.3f}'.format(
-                            i, train_steps, rmse_loss.item()))
-                    pred_range = torch.arange(
-                        self.args.seq_len,
-                        self.args.seq_len + self.args.pred_len)
-                    history = self.train_data.scaler.inverse_transform(
-                        torch.squeeze(batch_x[0, -self.args.seq_len:, :]))
-                    trues = torch.squeeze(
-                        batch_y[0, -self.args.pred_len:, :]).detach()
-                    preds = torch.squeeze(pred[0, :, :]).detach()
-                    fig_path = os.path.join(self.path, 'epochs', f'{epoch+1}')
-                    fig_name = f'{i}.png'
-                    fig = plot_prediction(history=history,
-                                          true=trues,
-                                          preds=preds,
-                                          pred_range=pred_range,
-                                          path=fig_path,
-                                          name=fig_name,
-                                          to_tb=True,
-                                          show=False,
-                                          save=False)
-                    if fig:
-                        self.writer.add_figure(f'{epoch+1}_{fig_name}', fig, i)
+                    self._log_iteration(train_steps, epoch, i, batch_x,
+                                        batch_y, pred, rmse_loss)
                 rmse_loss.backward()
                 self.optimizer.step()
                 if self.args.dry_run: break
             train_loss = np.mean(train_losses)
             val_loss = self.evaluate(self.val_loader, self.criterion)
             test_loss = self.evaluate(self.test_loader, self.criterion)
-            self.writer.add_scalar('loss/train/epoch', train_loss, epoch + 1)
-            self.writer.add_scalar('loss/val/epoch', val_loss, epoch + 1)
-            self.writer.add_scalar('loss/test/epoch', test_loss, epoch + 1)
-            with open(
-                    os.path.join(self.path, 'epochs', f'{epoch+1}',
-                                 'metrics.txt'), 'w') as fp:
-                fp.write(
-                    f'train {train_loss}\nval {val_loss}\ntest {test_loss}')
-            logging.info(
-                f'epoch {epoch + 1} time: {datetime.now() - epoch_time} s')
-            logging.info(
-                f'train loss: {train_loss:.3f} | val loss: {val_loss:.3f} | test loss: {test_loss:.3f}'
-            )
+            self._log_epoch_end(epoch, epoch_start_time, train_loss, val_loss,
+                                test_loss)
             early_stopping(val_loss, epoch + 1, self.model, self.path)
-            self.writer.add_scalar('lr/epoch',
-                                   float(self.scheduler.get_last_lr()[0]),
-                                   epoch + 1)
             self.scheduler.step()
             if early_stopping.early_stop or self.args.dry_run:
                 logging.info('early stopping!')
                 break
-        self.writer.flush()
-        self.writer.close()
+        self._finalize_writer()
         best_model_path = os.path.join(self.path, 'checkpoint.pth')
         self.model = torch.load(best_model_path)
         return self.model

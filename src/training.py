@@ -23,9 +23,9 @@ def parse_arguments():
     parser.add_argument('--val-split', type=float, default=.2)
     parser.add_argument('--test-split', type=float, default=.2)
     parser.add_argument('--epochs', type=int, default=50)
-    parser.add_argument('--batch-size', type=int, default=128)
+    parser.add_argument('--batch-size', type=int, default=96)
     parser.add_argument('--patience', type=int, default=10)
-    parser.add_argument('--log-interval', type=int, default=500)
+    parser.add_argument('--log-interval', type=int, default=1000)
     parser.add_argument('--learning-rate', type=float, default=1e-2)
     parser.add_argument('--gamma', type=float, default=.9)
     # ignore ipykernel

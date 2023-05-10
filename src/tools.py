@@ -71,9 +71,9 @@ class EarlyStopping:
     def save_checkpoint(self, val_loss, model, path):
         if self.verbose:
             logging.info(
-                f'validation loss decreased ({self.val_loss_min:.3f} --> {val_loss:.3f})',
-                'saving model',
-                sep='\n')
+                f'val loss decreased ({self.val_loss_min:.3f} --> {val_loss:.3f})'
+            )
+            logging.info('saving model'),
         os.makedirs(path, exist_ok=True)
         torch.save(model, os.path.join(path, 'checkpoint.pth'))
         self.val_loss_min = val_loss
