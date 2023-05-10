@@ -182,9 +182,13 @@ class Run:
                 logging.info('early stopping!')
                 break
         self._finalize_writer()
-        best_model_path = os.path.join(self.path, 'checkpoint.pth')
-        self.model = torch.load(best_model_path)
+        self._load_best_model()
         return self.model
+
+    def _load_best_model(self):
+        best_model_path = os.path.join(self.path, 'checkpoint.pth')
+        self.model.load_state_dict(torch.load(best_model_path))
+        self.model.eval()
 
     def evaluate(self, loader, criterion):
         losses = []

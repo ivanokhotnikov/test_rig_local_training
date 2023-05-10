@@ -75,7 +75,7 @@ class EarlyStopping:
             )
             logging.info('saving model'),
         os.makedirs(path, exist_ok=True)
-        torch.save(model, os.path.join(path, 'checkpoint.pth'))
+        torch.save(model.state_dict(), os.path.join(path, 'checkpoint.pth'))
         self.val_loss_min = val_loss
 
 
