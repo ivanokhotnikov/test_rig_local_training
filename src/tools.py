@@ -1,3 +1,4 @@
+import logging
 import os
 
 import matplotlib.pyplot as plt
@@ -39,31 +40,37 @@ class EarlyStopping:
         self.verbose = verbose
         self.counter = 0
         self.best_score = None
+        self.best_epoch = None
         self.early_stop = False
         self.val_loss_min = float('inf')
         self.delta = delta
 
-    def __call__(self, val_loss, model, path='./runs'):
+    def __call__(self, val_loss, epoch, model, path='./runs'):
         score = -val_loss
         if self.best_score is None:
             self.best_score = score
+            self.best_epoch = epoch
             self.path = os.path.join(path)
             self.save_checkpoint(val_loss, model, self.path)
         elif score < self.best_score + self.delta:
             self.counter += 1
-            print(
-                f'EarlyStopping counter: {self.counter} out of {self.patience}'
+            logging.info(
+                f'early stopping counter: {self.counter} out of {self.patience}'
             )
             if self.counter >= self.patience:
                 self.early_stop = True
         else:
             self.best_score = score
+            self.best_epoch = epoch
             self.save_checkpoint(val_loss, model, self.path)
             self.counter = 0
+        logging.info(
+            f'best loss: {-self.best_score:.3f}, best epoch: {self.best_epoch}'
+        )
 
     def save_checkpoint(self, val_loss, model, path):
         if self.verbose:
-            print(
+            logging.info(
                 f'validation loss decreased ({self.val_loss_min:.3f} --> {val_loss:.3f})',
                 'saving model',
                 sep='\n')

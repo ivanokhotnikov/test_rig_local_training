@@ -90,3 +90,18 @@ class TestRigData(Dataset):
 
     def inverse_transform(self, data):
         return self.scaler.inverse_transform(data)
+
+
+class TestRigDataPredict(Dataset):
+
+    def __init__(self, df):
+        self.df = df
+
+    def len(self):
+        return len(self.df)
+
+    def __getitem__(self, index):
+        pass
+
+    def inverse_transform(self, data):
+        return self.scaler.inverse_transform(data)

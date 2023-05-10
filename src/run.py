@@ -1,3 +1,4 @@
+import logging
 import os
 from datetime import datetime
 
@@ -8,7 +9,7 @@ from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
 from data import TestRigData
-from models import LSTM
+from models import LSTMModel
 from tools import EarlyStopping, plot_prediction
 
 
@@ -48,7 +49,7 @@ class Run:
         return data, loader
 
     def _build_model(self):
-        model = LSTM
+        model = LSTMModel
         return model(input_size=self.train_data.x.shape[-1],
                      output_size=self.train_data.y.shape[-1],
                      hidden_size=self.args.hidden_size,
@@ -72,15 +73,21 @@ class Run:
         train_steps = len(self.train_loader)
         early_stopping = EarlyStopping(patience=self.args.patience,
                                        verbose=True)
-        with open(os.path.join(self.path, 'params.txt'), 'w') as fp:
-            print('arguments:')
-            for k, v in vars(self.args).items():
-                print(f'\t{k}: {v}')
-                fp.write(f'{k}: {v}\n')
-            print('model:')
-            fp.write(str(self.model))
+        logging.basicConfig(format='%(asctime)s | %(levelname)s | %(message)s',
+                            datefmt='%H:%M:%S',
+                            handlers=[
+                                logging.FileHandler(
+                                    os.path.join(self.path, 'log.txt')),
+                                logging.StreamHandler()
+                            ],
+                            level=logging.DEBUG)
+        logging.info('arguments:')
+        for k, v in vars(self.args).items():
+            logging.info(f'\t{k:<15}{v:<15}')
+        logging.info('model:')
+        logging.info(self.model)
         for epoch in range(self.args.epochs):
-            print(f'epoch: {epoch + 1}')
+            logging.info(f'epoch: {epoch + 1}')
             os.makedirs(os.path.join(self.path, 'epochs'), exist_ok=True)
             train_losses = []
             epoch_time = datetime.now()
@@ -97,8 +104,9 @@ class Run:
                 self.writer.add_scalar('loss/train/iter', rmse_loss, i)
                 train_losses.append(rmse_loss.item())
                 if i % self.args.log_interval == 0:
-                    print('\titer: {0:>5d}/{1:>5d} | loss: {2:.3f}'.format(
-                        i, train_steps, rmse_loss.item()))
+                    logging.info(
+                        '\titer: {0:>5d}/{1:>5d} | loss: {2:.3f}'.format(
+                            i, train_steps, rmse_loss.item()))
                     pred_range = torch.arange(
                         self.args.seq_len,
                         self.args.seq_len + self.args.pred_len)
@@ -117,7 +125,7 @@ class Run:
                                           name=fig_name,
                                           to_tb=True,
                                           show=False,
-                                          save=True)
+                                          save=False)
                     if fig:
                         self.writer.add_figure(f'{epoch+1}_{fig_name}', fig, i)
                 rmse_loss.backward()
@@ -126,22 +134,29 @@ class Run:
             train_loss = np.mean(train_losses)
             val_loss = self.evaluate(self.val_loader, self.criterion)
             test_loss = self.evaluate(self.test_loader, self.criterion)
+            self.writer.add_scalar('loss/train/epoch', train_loss, epoch + 1)
+            self.writer.add_scalar('loss/val/epoch', val_loss, epoch + 1)
+            self.writer.add_scalar('loss/test/epoch', test_loss, epoch + 1)
             with open(
                     os.path.join(self.path, 'epochs', f'{epoch+1}',
                                  'metrics.txt'), 'w') as fp:
                 fp.write(
                     f'train {train_loss}\nval {val_loss}\ntest {test_loss}')
-            print(f'epoch {epoch + 1} time: {datetime.now() - epoch_time} s')
-            print(
+            logging.info(
+                f'epoch {epoch + 1} time: {datetime.now() - epoch_time} s')
+            logging.info(
                 f'train loss: {train_loss:.3f} | val loss: {val_loss:.3f} | test loss: {test_loss:.3f}'
             )
-            early_stopping(val_loss, self.model, self.path)
-            self.writer.flush()
-            self.writer.close()
+            early_stopping(val_loss, epoch + 1, self.model, self.path)
+            self.writer.add_scalar('lr/epoch',
+                                   float(self.scheduler.get_last_lr()[0]),
+                                   epoch + 1)
             self.scheduler.step()
             if early_stopping.early_stop or self.args.dry_run:
-                print('early stopping!')
+                logging.info('early stopping!')
                 break
+        self.writer.flush()
+        self.writer.close()
         best_model_path = os.path.join(self.path, 'checkpoint.pth')
         self.model = torch.load(best_model_path)
         return self.model
