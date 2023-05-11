@@ -4,8 +4,8 @@ from torch import nn
 
 class LSTMModel(nn.Module):
 
-    def __init__(self, input_size: int, hidden_size: int, num_layers: int,
-                 dropout: float, batch_size: int, output_size: int, **kwargs):
+    def __init__(self, input_size, hidden_size, num_layers, dropout,
+                 batch_size, output_size, **kwargs):
         super(LSTMModel, self).__init__()
         # rnn = nn.LSTM(input_size=10, hidden_size=20, num_layers=2) # input_size - number of expected features in the input x, hidden_size -  number of features in the hidden state h
 

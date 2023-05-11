@@ -112,8 +112,10 @@ class Run:
 
     def _log_args_model(self):
         logging.info('arguments:')
-        for k, v in vars(self.args).items():
-            logging.info(f'\t{k:<15}{v:<15}')
+        with open(os.path.join(self.path, 'args.txt'), 'w') as fp:
+            for k, v in vars(self.args).items():
+                fp.write(f'{k} {v}\n')
+                logging.info(f'\t{k:<15}{v:<15}')
         logging.info('model:')
         logging.info(self.model)
 
